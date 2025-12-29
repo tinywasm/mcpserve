@@ -3,7 +3,7 @@
 `mcpserve` provides a decoupled MCP server using reflection to avoid domain dependency on MCP types.
 
 ## Core Flow
-See [DIAGRAM.md](DIAGRAM.md) for visual flow.
+See [MCP_FLOW.mermaid](MCP_FLOW.mermaid) for visual flow.
 
 1. **Discovery**: `mcpserve` takes `[]any` handlers.
 2. **Reflection**: For each handler, it calls `GetMCPToolsMetadata()` (see [tools.go](../tools.go)).

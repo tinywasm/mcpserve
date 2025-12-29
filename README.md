@@ -13,7 +13,7 @@ Standalone, decoupled MCP server for the TinyWasm ecosystem.
 ## Documentation
 - [**Development**](docs/DEVELOPMENT.md): How to add tools to your handler.
 - [**Architecture**](docs/IMPLEMENTATION.md): How decoupling and reflection work.
-- [**Diagram**](docs/DIAGRAM.md): Visual flow of calls.
+- [**Diagram**](docs/MCP_FLOW.mermaid): Visual flow of calls.
 
 ## Usage
 ```go
