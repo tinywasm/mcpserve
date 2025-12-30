@@ -73,7 +73,7 @@ func (h *Handler) Serve() {
 		tools, err := mcpToolsFromHandler(handler)
 		if err != nil {
 			if h.config.Logger != nil {
-				h.config.Logger("Warning: Failed to load tools from handler:", err)
+				h.config.Logger(fmt.Sprintf("Warning: Failed to load tools from handler %T: %v", handler, err))
 			}
 			continue
 		}
