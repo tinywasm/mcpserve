@@ -7,13 +7,16 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
+// Loggable defines the interface for handlers that support logging
+type Loggable interface {
+	Name() string
+	SetLog(logger func(message ...any))
+}
+
 // ToolExecutor defines how a tool should be executed
 // Handlers implement this to provide execution logic without exposing internals
 // args: map of parameter name to value from MCP request
-// progress: channel to send responses back to caller
-//   - string: text messages
-//   - BinaryData: binary data (images, files)
-type ToolExecutor func(args map[string]any, progress chan<- any)
+type ToolExecutor func(args map[string]any)
 
 // ToolMetadata provides MCP tool configuration metadata
 // This is the standard interface that all handlers should implement
@@ -119,13 +122,11 @@ func convertToToolMetadata(source any) (ToolMetadata, error) {
 	// Extract Execute field (function)
 	if execField := sourceValue.FieldByName("Execute"); execField.IsValid() && execField.Kind() == reflect.Func {
 		// Convert to ToolExecutor by wrapping the function
-		meta.Execute = func(args map[string]any, progress chan<- any) {
+		meta.Execute = func(args map[string]any) {
 			// Create reflection values for call
 			execField.Call([]reflect.Value{
 				reflect.ValueOf(args),
-				reflect.ValueOf(progress),
 			})
-			// Note: No error handling - errors sent as messages via channel
 		}
 	}
 
