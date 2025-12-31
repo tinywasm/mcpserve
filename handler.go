@@ -12,6 +12,7 @@ type Config struct {
 	Port          string
 	ServerName    string // MCP server name
 	ServerVersion string // MCP server version
+	AppName       string // Application name (used to generate MCP server ID)
 }
 
 // TuiInterface defines what the MCP handler needs from the TUI
@@ -70,7 +71,7 @@ func (h *Handler) Serve() {
 		if handler == nil {
 			continue
 		}
-		tools, err := mcpToolsFromHandler(handler)
+		tools, err := h.mcpToolsFromHandler(handler)
 		if err != nil {
 			h.log(fmt.Sprintf("Warning: Failed to load tools from handler %T: %v", handler, err))
 			continue

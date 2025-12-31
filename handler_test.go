@@ -64,7 +64,13 @@ func TestNewHandler(t *testing.T) {
 // TestToolDiscovery verifies tool metadata extraction
 func TestToolDiscovery(t *testing.T) {
 	mock := &mockHandler{}
-	tools, err := mcpToolsFromHandler(mock)
+
+	// Create a handler to use the method
+	config := Config{Port: "3030", ServerName: "Test", ServerVersion: "1.0.0"}
+	exitChan := make(chan bool, 1)
+	handler := NewHandler(config, []any{mock}, &mockTUI{}, exitChan)
+
+	tools, err := handler.mcpToolsFromHandler(mock)
 
 	if err != nil {
 		t.Fatalf("Failed to extract tools: %v", err)
@@ -88,7 +94,12 @@ func TestToolDiscovery(t *testing.T) {
 func TestToolExecution(t *testing.T) {
 	mock := &mockHandler{}
 
-	tools, err := mcpToolsFromHandler(mock)
+	// Create a handler to use the method
+	config := Config{Port: "3030", ServerName: "Test", ServerVersion: "1.0.0"}
+	exitChan := make(chan bool, 1)
+	handler := NewHandler(config, []any{mock}, &mockTUI{}, exitChan)
+
+	tools, err := handler.mcpToolsFromHandler(mock)
 	if err != nil {
 		t.Fatalf("Failed to extract tools: %v", err)
 	}

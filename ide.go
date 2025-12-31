@@ -58,7 +58,7 @@ func (h *Handler) ConfigureIDEs() {
 		}
 
 		for _, configPath := range configPaths {
-			_ = updateMCPConfig(configPath, h.config.Port)
+			_ = updateMCPConfig(configPath, h.config.AppName, h.config.Port)
 		}
 	}
 }

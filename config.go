@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 )
 
 // mcpConfig represents the structure of VS Code's mcp.json file
@@ -14,17 +15,18 @@ type mcpConfig struct {
 
 // mcpServerConfig represents a single MCP server configuration
 type mcpServerConfig struct {
-	URL     string   `json:"url,omitempty"`
-	Type    string   `json:"type"`
-	Command string   `json:"command,omitempty"`
-	Args    []string `json:"args,omitempty"`
+	URL       string   `json:"url,omitempty"`
+	Type      string   `json:"type"`
+	Command   string   `json:"command,omitempty"`
+	Args      []string `json:"args,omitempty"`
+	AutoStart bool     `json:"autoStart,omitempty"` // Attempt to force auto-start
 }
 
 // updateMCPConfig reads, updates, and writes the mcp.json file.
-// Adds or updates the "tinywasm-mcp" entry with the current configuration.
+// Adds or updates the MCP server entry with the current configuration.
 // Creates new file if it doesn't exist.
 // Returns nil for permission errors (silent failure).
-func updateMCPConfig(configPath string, mcpPort string) error {
+func updateMCPConfig(configPath string, appName string, mcpPort string) error {
 	var config mcpConfig
 
 	// Read existing config
@@ -57,8 +59,9 @@ func updateMCPConfig(configPath string, mcpPort string) error {
 		}
 	}
 
-	// Add/update TinyWasm MCP entry
-	config.Servers["tinywasm-mcp"] = mcpServerConfig{
+	// Add/update MCP entry with app-specific name
+	serverID := fmt.Sprintf("%s-mcp", strings.ToLower(appName))
+	config.Servers[serverID] = mcpServerConfig{
 		URL:  fmt.Sprintf("http://localhost:%s/mcp", mcpPort),
 		Type: "http",
 	}

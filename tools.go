@@ -39,7 +39,7 @@ type ParameterMetadata struct {
 
 // mcpToolsFromHandler loads all MCP tools from a handler using reflection
 // Looks for a method called "GetMCPToolsMetadata() []ToolMetadata"
-func mcpToolsFromHandler(handler any) ([]ToolMetadata, error) {
+func (h *Handler) mcpToolsFromHandler(handler any) ([]ToolMetadata, error) {
 	handlerValue := reflect.ValueOf(handler)
 	method := handlerValue.MethodByName("GetMCPToolsMetadata")
 
@@ -54,11 +54,11 @@ func mcpToolsFromHandler(handler any) ([]ToolMetadata, error) {
 	}
 
 	// Convert result to []ToolMetadata using reflection
-	return convertToToolMetadataSlice(results[0].Interface())
+	return h.convertToToolMetadataSlice(results[0].Interface())
 }
 
 // convertToToolMetadataSlice converts any compatible slice to []ToolMetadata
-func convertToToolMetadataSlice(source any) ([]ToolMetadata, error) {
+func (h *Handler) convertToToolMetadataSlice(source any) ([]ToolMetadata, error) {
 	sourceValue := reflect.ValueOf(source)
 
 	// Check if it's a slice
@@ -70,7 +70,7 @@ func convertToToolMetadataSlice(source any) ([]ToolMetadata, error) {
 	result := make([]ToolMetadata, count)
 
 	for i := 0; i < count; i++ {
-		meta, err := convertToToolMetadata(sourceValue.Index(i).Interface())
+		meta, err := h.convertToToolMetadata(sourceValue.Index(i).Interface())
 		if err != nil {
 			return nil, fmt.Errorf("tool %d: %w", i, err)
 		}
@@ -81,7 +81,7 @@ func convertToToolMetadataSlice(source any) ([]ToolMetadata, error) {
 }
 
 // convertToToolMetadata converts any compatible struct to ToolMetadata using reflection
-func convertToToolMetadata(source any) (ToolMetadata, error) {
+func (h *Handler) convertToToolMetadata(source any) (ToolMetadata, error) {
 	sourceValue := reflect.ValueOf(source)
 
 	// Check if it's already the correct type
@@ -121,12 +121,18 @@ func convertToToolMetadata(source any) (ToolMetadata, error) {
 
 	// Extract Execute field (function)
 	if execField := sourceValue.FieldByName("Execute"); execField.IsValid() && execField.Kind() == reflect.Func {
-		// Convert to ToolExecutor by wrapping the function
-		meta.Execute = func(args map[string]any) {
-			// Create reflection values for call
-			execField.Call([]reflect.Value{
-				reflect.ValueOf(args),
-			})
+		// Simply assign the function directly without wrapping
+		// The executor.go will handle calling it with the right arguments
+		funcType := execField.Type()
+		if funcType.NumIn() == 1 {
+			// Function signature: func(args map[string]any)
+			meta.Execute = func(args map[string]any) {
+				execField.Call([]reflect.Value{
+					reflect.ValueOf(args),
+				})
+			}
+		} else {
+			return meta, fmt.Errorf("Execute function must have signature: func(args map[string]any)")
 		}
 	}
 
