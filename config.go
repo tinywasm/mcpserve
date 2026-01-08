@@ -7,75 +7,68 @@ import (
 	"strings"
 )
 
-// mcpConfig represents the structure of VS Code's mcp.json file
-type mcpConfig struct {
-	Servers map[string]mcpServerConfig `json:"servers"`
-	Inputs  []any                      `json:"inputs"`
-}
+// writeMCPConfig is the unified config writer for all IDEs.
+// It reads existing config, preserves all servers, and adds/updates our entry.
+func writeMCPConfig(configPath string, appName string, mcpPort string, ide IDEInfo) error {
+	// Read existing config as raw JSON to preserve all fields
+	var rawConfig map[string]any
 
-// mcpServerConfig represents a single MCP server configuration
-type mcpServerConfig struct {
-	URL       string   `json:"url,omitempty"`
-	Type      string   `json:"type"`
-	Command   string   `json:"command,omitempty"`
-	Args      []string `json:"args,omitempty"`
-	AutoStart bool     `json:"autoStart,omitempty"` // Attempt to force auto-start
-}
-
-// updateMCPConfig reads, updates, and writes the mcp.json file.
-// Adds or updates the MCP server entry with the current configuration.
-// Creates new file if it doesn't exist.
-// Returns nil for permission errors (silent failure).
-func updateMCPConfig(configPath string, appName string, mcpPort string) error {
-	var config mcpConfig
-
-	// Read existing config
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			// Create new config structure
-			config = mcpConfig{
-				Servers: make(map[string]mcpServerConfig),
-				Inputs:  []any{},
-			}
+			rawConfig = make(map[string]any)
 		} else if os.IsPermission(err) {
-			// No permissions, return silently
-			return nil
+			return nil // Silent failure
 		} else {
 			return err
 		}
 	} else {
-		// Parse existing config
-		if err := json.Unmarshal(data, &config); err != nil {
-			// Invalid JSON, fail silently
-			return nil
-		}
-
-		if config.Servers == nil {
-			config.Servers = make(map[string]mcpServerConfig)
-		}
-		if config.Inputs == nil {
-			config.Inputs = []any{}
+		if err := json.Unmarshal(data, &rawConfig); err != nil {
+			rawConfig = make(map[string]any)
 		}
 	}
 
-	// Add/update MCP entry with app-specific name
+	// Get or create the servers map (e.g., "servers" or "mcpServers")
+	serversRaw, exists := rawConfig[ide.ServersKey]
+	var servers map[string]any
+	if exists {
+		servers, _ = serversRaw.(map[string]any)
+	}
+	if servers == nil {
+		servers = make(map[string]any)
+	}
+
+	// Build our server entry
 	serverID := fmt.Sprintf("%s-mcp", strings.ToLower(appName))
-	config.Servers[serverID] = mcpServerConfig{
-		URL:  fmt.Sprintf("http://localhost:%s/mcp", mcpPort),
-		Type: "http",
+	serverEntry := map[string]any{
+		ide.URLKey: fmt.Sprintf("http://localhost:%s/mcp", mcpPort),
 	}
 
-	// Marshal with proper formatting (tabs for consistency with VS Code)
-	updatedData, err := json.MarshalIndent(config, "", "\t")
+	// Add extra fields (e.g., "type": "http", "autoStart": true)
+	for k, v := range ide.ExtraFields {
+		serverEntry[k] = v
+	}
+
+	// Add/update our server entry
+	servers[serverID] = serverEntry
+	rawConfig[ide.ServersKey] = servers
+
+	// Ensure inputs array exists for IDEs that need it
+	if ide.HasInputs {
+		if _, hasInputs := rawConfig["inputs"]; !hasInputs {
+			rawConfig["inputs"] = []any{}
+		}
+	}
+
+	// Marshal with tabs
+	updatedData, err := json.MarshalIndent(rawConfig, "", "\t")
 	if err != nil {
 		return err
 	}
 
-	// Write back (fail silently on permission errors)
 	if err := os.WriteFile(configPath, updatedData, 0644); err != nil {
 		if os.IsPermission(err) {
-			return nil // Silent failure
+			return nil
 		}
 		return err
 	}
