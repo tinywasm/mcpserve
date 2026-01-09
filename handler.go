@@ -4,10 +4,8 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"reflect"
 	"sync"
 	"time"
-	"unsafe"
 
 	"github.com/mark3labs/mcp-go/server"
 )
@@ -134,50 +132,14 @@ func (h *Handler) Stop() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// Use reflection to call Shutdown if it exists (defensive against mcp-go changes)
+	// Use the exported Shutdown method of StreamableHTTPServer
 	if h.httpServer != nil {
-		// Try direct interface assertion first
 		if srv, ok := h.httpServer.(interface {
 			Shutdown(context.Context) error
-			Close() error
 		}); ok {
 			err := srv.Shutdown(ctx)
 			if err != nil {
 				h.log("Error shutting down MCP server:", err)
-			}
-			srv.Close()
-		} else {
-			// Try to find an unexported 'server' field of type *http.Server
-			v := reflect.ValueOf(h.httpServer)
-			if v.Kind() == reflect.Ptr {
-				v = v.Elem()
-			}
-			if v.Kind() == reflect.Struct {
-				f := v.FieldByName("httpServer")
-				if !f.IsValid() {
-					f = v.FieldByName("server")
-				}
-				if !f.IsValid() {
-					f = v.FieldByName("Server")
-				}
-
-				if f.IsValid() {
-					// Access unexported field using unsafe
-					ptr := unsafe.Pointer(f.UnsafeAddr())
-
-					// We suspect it's an *http.Server or something that implements Shutdown
-					// If it's *http.Server, we can cast it directly
-					if f.Type().String() == "*http.Server" {
-						srv := (*http.Server)(*(*unsafe.Pointer)(ptr))
-						if srv != nil {
-							err := srv.Shutdown(ctx)
-							if err != nil {
-								h.log("Error shutting down MCP server via unsafe field:", err)
-							}
-							srv.Close()
-						}
-					}
-				}
 			}
 		}
 	}
