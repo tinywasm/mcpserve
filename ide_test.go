@@ -66,7 +66,6 @@ func TestWriteMCPConfig_Antigravity(t *testing.T) {
 		t.Errorf("Wrong serverUrl: %v", server["serverUrl"])
 	}
 
-	t.Logf("✓ Antigravity config:\n%s", string(data))
 }
 
 // TestWriteMCPConfig_VSCode verifies VS Code-specific config format
@@ -112,7 +111,6 @@ func TestWriteMCPConfig_VSCode(t *testing.T) {
 		t.Errorf("Wrong autoStart: %v", server["autoStart"])
 	}
 
-	t.Logf("✓ VS Code config:\n%s", string(data))
 }
 
 // TestWriteMCPConfig_PreservesExistingServers verifies that other servers are preserved
@@ -184,7 +182,6 @@ func TestWriteMCPConfig_PreservesExistingServers(t *testing.T) {
 		t.Error("other-server should be preserved")
 	}
 
-	t.Logf("✓ All servers preserved:\n%s", string(data))
 }
 
 // TestWriteMCPConfig_UpdatesExistingEntry verifies that existing tinywasm entry is updated
@@ -224,7 +221,6 @@ func TestWriteMCPConfig_UpdatesExistingEntry(t *testing.T) {
 		t.Errorf("Expected URL '%s', got '%v'", expectedURL, server["serverUrl"])
 	}
 
-	t.Logf("✓ Entry updated correctly:\n%s", string(data))
 }
 
 // TestFindMCPConfigPaths_NoProfiles verifies behavior when no profiles directory exists

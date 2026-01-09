@@ -1,6 +1,7 @@
 package mcpserve
 
 import (
+	"net"
 	"testing"
 	"time"
 )
@@ -135,7 +136,7 @@ func TestServeStartsServer(t *testing.T) {
 	tui := &mockTUI{}
 
 	handler := NewHandler(config, []any{mock}, tui, exitChan)
-	handler.SetLog(func(messages ...any) { t.Log(messages...) })
+	// handler.SetLog(func(messages ...any) { t.Log(messages...) })
 
 	// Start server in goroutine
 	serverStarted := make(chan bool, 1)
@@ -157,5 +158,71 @@ func TestServeStartsServer(t *testing.T) {
 	time.Sleep(200 * time.Millisecond)
 
 	// If we reach here without panic, test passes
-	t.Log("✓ Server started and stopped successfully")
+}
+
+// TestServeStopsOnValue verifies Serve shuts down when receiving a value on exitChan
+func TestServeStopsOnValue(t *testing.T) {
+	config := Config{
+		Port:          "3032",
+		ServerName:    "Test Stop Value",
+		ServerVersion: "1.0.0",
+	}
+
+	exitChan := make(chan bool, 1)
+	handler := NewHandler(config, nil, &mockTUI{}, exitChan)
+	// handler.SetLog(func(messages ...any) { t.Log(messages...) })
+
+	done := make(chan bool)
+	go func() {
+		handler.Serve()
+		done <- true
+	}()
+
+	time.Sleep(100 * time.Millisecond)
+
+	// Send value instead of closing
+	exitChan <- true
+
+	select {
+	case <-done:
+		// success
+	case <-time.After(2 * time.Second):
+		t.Error("Timed out waiting for server to stop")
+	}
+}
+
+// TestPortRelease verifies port is free after Stop
+func TestPortRelease(t *testing.T) {
+	config := Config{
+		Port:          "3033",
+		ServerName:    "Test Port Release",
+		ServerVersion: "1.0.0",
+	}
+
+	exitChan := make(chan bool, 1)
+	handler := NewHandler(config, nil, &mockTUI{}, exitChan)
+
+	go handler.Serve()
+	time.Sleep(200 * time.Millisecond)
+
+	exitChan <- true
+	time.Sleep(200 * time.Millisecond)
+
+	// Wait for port to be released (up to 2 seconds)
+	addr := ":3033"
+	deadline := time.Now().Add(2 * time.Second)
+	released := false
+	for time.Now().Before(deadline) {
+		ln, err := net.Listen("tcp", addr)
+		if err == nil {
+			ln.Close()
+			released = true
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	if !released {
+		t.Errorf("Port 3033 not released after 2 seconds")
+	}
 }
