@@ -21,7 +21,7 @@ The system automatically detects user configuration directories:
 ## Automated Maintenance
 
 ### Duplicate Cleanup
-If multiple entries point to the same server URL (e.g., `http://localhost:3030/mcp`), the system maintains only the correct `{AppName}-mcp` entry and removes redundant ones.
+Any entry pointing to the same server URL (e.g., `http://localhost:3030/mcp`) that doesn't match the current `AppName` is removed. This handles migration from old formats (e.g., `tinywasm-mcp` → `tinywasm`).
 
 ### Idempotent Updates
 The configuration is only rewritten if there are actual changes in:

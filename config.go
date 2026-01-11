@@ -69,27 +69,20 @@ func writeMCPConfig(configPath string, appName string, mcpPort string, ide IDEIn
 		servers = make(map[string]any)
 	}
 
-	// Cleanup duplicate URL entries (e.g., "-mcp" and "tinywasm-mcp" with same URL)
+	// Cleanup duplicate URL entries (e.g., old "tinywasm-mcp" and new "tinywasm" with same URL)
 	expectedURL := fmt.Sprintf("http://localhost:%s/mcp", mcpPort)
-	serverID := fmt.Sprintf("%s-mcp", strings.ToLower(appName))
+	serverID := strings.ToLower(appName)
 
 	// Find all entries with our URL
 	duplicatesRemoved := false
-	var keysWithOurURL []string
 	for key, entry := range servers {
 		if serverEntry, ok := entry.(map[string]any); ok {
 			if url, _ := serverEntry[ide.URLKey].(string); url == expectedURL {
-				keysWithOurURL = append(keysWithOurURL, key)
-			}
-		}
-	}
-
-	// If more than one entry has our URL, keep only the correct one (serverID)
-	if len(keysWithOurURL) > 1 {
-		for _, key := range keysWithOurURL {
-			if key != serverID {
-				delete(servers, key)
-				duplicatesRemoved = true
+				// Remove any entry with our URL that is not our serverID
+				if key != serverID {
+					delete(servers, key)
+					duplicatesRemoved = true
+				}
 			}
 		}
 	}

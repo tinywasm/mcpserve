@@ -14,7 +14,7 @@ func TestWriteMCPConfig_CleansDuplicateURLEntries(t *testing.T) {
 		tempDir := t.TempDir()
 		configPath := filepath.Join(tempDir, "mcp_config.json")
 
-		// Real corrupted config from user's Antigravity (has "-mcp" and "tinywasm-mcp" with same URL)
+		// Real corrupted config from user's Antigravity (has "-mcp" and "tinywasm" with same URL)
 		corruptedConfig := `{
 	"mcpServers": {
 		"-mcp": {
@@ -28,7 +28,7 @@ func TestWriteMCPConfig_CleansDuplicateURLEntries(t *testing.T) {
 				"SOURCE": "antigravity"
 			}
 		},
-		"tinywasm-mcp": {
+		"tinywasm": {
 			"serverUrl": "http://localhost:3030/mcp"
 		}
 	}
@@ -59,8 +59,8 @@ func TestWriteMCPConfig_CleansDuplicateURLEntries(t *testing.T) {
 		}
 
 		// Verify valid servers preserved
-		if _, exists := config["mcpServers"]["tinywasm-mcp"]; !exists {
-			t.Error("tinywasm-mcp should exist")
+		if _, exists := config["mcpServers"]["tinywasm"]; !exists {
+			t.Error("tinywasm should exist")
 		}
 		if _, exists := config["mcpServers"]["google-maps-platform-code-assist"]; !exists {
 			t.Error("google-maps-platform-code-assist should be preserved")
@@ -71,7 +71,7 @@ func TestWriteMCPConfig_CleansDuplicateURLEntries(t *testing.T) {
 		tempDir := t.TempDir()
 		configPath := filepath.Join(tempDir, "mcp.json")
 
-		// Real corrupted config from user's VS Code (has "-mcp" and "tinywasm-mcp" with same URL)
+		// Real corrupted config from user's VS Code (has "-mcp" and "tinywasm" with same URL)
 		corruptedConfig := `{
 	"inputs": [],
 	"servers": {
@@ -85,7 +85,7 @@ func TestWriteMCPConfig_CleansDuplicateURLEntries(t *testing.T) {
 			"command": "npx",
 			"type": "stdio"
 		},
-		"tinywasm-mcp": {
+		"tinywasm": {
 			"autoStart": true,
 			"type": "http",
 			"url": "http://localhost:3030/mcp"
@@ -119,8 +119,8 @@ func TestWriteMCPConfig_CleansDuplicateURLEntries(t *testing.T) {
 		}
 
 		// Verify valid servers preserved
-		if _, exists := config["tinywasm-mcp"]; !exists {
-			t.Error("tinywasm-mcp should exist")
+		if _, exists := config["tinywasm"]; !exists {
+			t.Error("tinywasm should exist")
 		}
 		if _, exists := config["cloudflare"]; !exists {
 			t.Error("cloudflare should be preserved")
@@ -137,7 +137,7 @@ func TestWriteMCPConfig_CleansDuplicateURLEntries(t *testing.T) {
 		"other-server": {
 			"serverUrl": "http://localhost:9999/mcp"
 		},
-		"tinywasm-mcp": {
+		"tinywasm": {
 			"serverUrl": "http://localhost:3030/mcp"
 		}
 	}
@@ -165,10 +165,62 @@ func TestWriteMCPConfig_CleansDuplicateURLEntries(t *testing.T) {
 		if _, exists := config["mcpServers"]["other-server"]; !exists {
 			t.Error("other-server should be preserved (different URL)")
 		}
-		if _, exists := config["mcpServers"]["tinywasm-mcp"]; !exists {
-			t.Error("tinywasm-mcp should exist")
+		if _, exists := config["mcpServers"]["tinywasm"]; !exists {
+			t.Error("tinywasm should exist")
 		}
 	})
+}
+
+// TestWriteMCPConfig_MigratesOldServerID verifies migration from old "tinywasm-mcp" to new "tinywasm"
+func TestWriteMCPConfig_MigratesOldServerID(t *testing.T) {
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "mcp_config.json")
+
+	// Config with old "-mcp" suffix server ID (the old format)
+	oldConfig := `{
+	"mcpServers": {
+		"tinywasm-mcp": {
+			"serverUrl": "http://localhost:3030/mcp"
+		},
+		"google-maps": {
+			"serverUrl": "http://localhost:9999/mcp"
+		}
+	}
+}`
+	if err := os.WriteFile(configPath, []byte(oldConfig), 0644); err != nil {
+		t.Fatalf("Failed to write config: %v", err)
+	}
+
+	// Run with appName "tinywasm" - now generates "tinywasm" (not "tinywasm-mcp")
+	err := writeMCPConfig(configPath, "tinywasm", "3030", testAntigravityIDE())
+	if err != nil {
+		t.Fatalf("writeMCPConfig failed: %v", err)
+	}
+
+	// Read and validate
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("Failed to read config: %v", err)
+	}
+	var config map[string]map[string]any
+	if err := json.Unmarshal(data, &config); err != nil {
+		t.Fatalf("Invalid JSON: %v", err)
+	}
+
+	// Old "tinywasm-mcp" should be removed (same URL as new "tinywasm")
+	if _, exists := config["mcpServers"]["tinywasm-mcp"]; exists {
+		t.Error("Old 'tinywasm-mcp' should have been removed as duplicate URL")
+	}
+
+	// New "tinywasm" should exist
+	if _, exists := config["mcpServers"]["tinywasm"]; !exists {
+		t.Error("New 'tinywasm' should exist")
+	}
+
+	// Unrelated server should be preserved
+	if _, exists := config["mcpServers"]["google-maps"]; !exists {
+		t.Error("google-maps should be preserved (different URL)")
+	}
 }
 
 // TestWriteMCPConfig_UpdatesOnlyWhenDifferent verifies file IS updated when config differs
@@ -213,7 +265,7 @@ func TestWriteMCPConfig_UpdatesOnlyWhenDifferent(t *testing.T) {
 	data, _ := os.ReadFile(configPath)
 	var config map[string]map[string]any
 	json.Unmarshal(data, &config)
-	server := config["mcpServers"]["tinywasm-mcp"].(map[string]any)
+	server := config["mcpServers"]["tinywasm"].(map[string]any)
 	if server["serverUrl"] != "http://localhost:3030/mcp" {
 		t.Errorf("URL not updated: %v", server["serverUrl"])
 	}

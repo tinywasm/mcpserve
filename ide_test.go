@@ -61,7 +61,7 @@ func TestWriteMCPConfig_Antigravity(t *testing.T) {
 	}
 
 	servers := rawConfig["mcpServers"].(map[string]any)
-	server := servers["tinywasm-mcp"].(map[string]any)
+	server := servers["tinywasm"].(map[string]any)
 
 	if server["serverUrl"] != "http://localhost:3030/mcp" {
 		t.Errorf("Wrong serverUrl: %v", server["serverUrl"])
@@ -100,7 +100,7 @@ func TestWriteMCPConfig_VSCode(t *testing.T) {
 	}
 
 	servers := rawConfig["servers"].(map[string]any)
-	server := servers["tinywasm-mcp"].(map[string]any)
+	server := servers["tinywasm"].(map[string]any)
 
 	if server["url"] != "http://localhost:3030/mcp" {
 		t.Errorf("Wrong url: %v", server["url"])
@@ -156,9 +156,9 @@ func TestWriteMCPConfig_PreservesExistingServers(t *testing.T) {
 
 	mcpServers := rawConfig["mcpServers"]
 
-	// Verify tinywasm-mcp was added
-	if _, exists := mcpServers["tinywasm-mcp"]; !exists {
-		t.Error("tinywasm-mcp should be present")
+	// Verify tinywasm was added
+	if _, exists := mcpServers["tinywasm"]; !exists {
+		t.Error("tinywasm should be present")
 	}
 
 	// Verify google-maps was preserved with all its properties
@@ -192,7 +192,7 @@ func TestWriteMCPConfig_UpdatesExistingEntry(t *testing.T) {
 
 	existingConfig := `{
 	"mcpServers": {
-		"tinywasm-mcp": {
+		"tinywasm": {
 			"serverUrl": "http://localhost:9999/old"
 		}
 	}
@@ -216,7 +216,7 @@ func TestWriteMCPConfig_UpdatesExistingEntry(t *testing.T) {
 		t.Fatalf("Failed to parse config: %v", err)
 	}
 
-	server := rawConfig["mcpServers"]["tinywasm-mcp"].(map[string]any)
+	server := rawConfig["mcpServers"]["tinywasm"].(map[string]any)
 	expectedURL := "http://localhost:3030/mcp"
 	if server["serverUrl"] != expectedURL {
 		t.Errorf("Expected URL '%s', got '%v'", expectedURL, server["serverUrl"])
