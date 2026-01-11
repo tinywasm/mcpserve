@@ -12,7 +12,9 @@ See [MCP_FLOW.mermaid](MCP_FLOW.mermaid) for visual flow.
     - Captures messages/binary data via channel.
     - Refreshes UI via `TuiInterface`.
 
-## Key Logic
-- **Decoupling**: Handlers re-declare metadata structs locally. `mcpserve` maps them via `reflect` in [tools.go](../tools.go).
-- **Generic Executor**: [executor.go](../executor.go) handles the JSON-RPC <-> Go Channel translation for all tools.
-- **IDE Config**: [ide.go](../ide.go) handles automatic VS Code/Antigravity discovery.
+## Key Components
+- **Decoupling**: Handlers re-declare minimal metadata structs. `mcpserve` maps them via reflection ([tools.go](../tools.go)).
+- **Generic Executor**: Wraps JSON-RPC calls, captures streams (Log/Binary) via channels, and updates UI ([executor.go](../executor.go)).
+- **IDE Manager**: Orchestrates automatic configuration discovery, path resolution (profiles), and JSON maintenance ([ide.go](../ide.go)).
+- **Config Writer**: Handles idempotent JSON updates, validation, and duplicate URL cleanup ([config.go](../config.go)).
+

@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 // Helper to create IDEInfo for testing
@@ -272,5 +273,68 @@ func TestFindMCPConfigPaths_DirectoryNotFound(t *testing.T) {
 	_, err := findMCPConfigPaths("/nonexistent/path", "mcp_config.json")
 	if err == nil {
 		t.Error("Expected error for nonexistent directory")
+	}
+}
+
+// TestWriteMCPConfig_EmptyAppName_ReturnsError verifies that empty appName is rejected
+func TestWriteMCPConfig_EmptyAppName_ReturnsError(t *testing.T) {
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "mcp_config.json")
+
+	// Test empty appName
+	err := writeMCPConfig(configPath, "", "3030", testAntigravityIDE())
+	if err == nil {
+		t.Error("Expected error for empty appName")
+	}
+
+	// Verify file was NOT created
+	if _, err := os.Stat(configPath); !os.IsNotExist(err) {
+		t.Error("File should NOT have been created with empty appName")
+	}
+
+	// Test whitespace-only appName
+	err = writeMCPConfig(configPath, "   ", "3030", testAntigravityIDE())
+	if err == nil {
+		t.Error("Expected error for whitespace-only appName")
+	}
+}
+
+// TestWriteMCPConfig_NoWriteWhenIdentical verifies no file modification when config is identical
+func TestWriteMCPConfig_NoWriteWhenIdentical(t *testing.T) {
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "mcp_config.json")
+
+	// Create initial config
+	err := writeMCPConfig(configPath, "tinywasm", "3030", testAntigravityIDE())
+	if err != nil {
+		t.Fatalf("Initial write failed: %v", err)
+	}
+
+	// Get initial modification time
+	initialStat, err := os.Stat(configPath)
+	if err != nil {
+		t.Fatalf("Failed to stat file: %v", err)
+	}
+	initialModTime := initialStat.ModTime()
+
+	// Wait a bit to ensure any write would have different ModTime
+	time.Sleep(10 * time.Millisecond)
+
+	// Write same config again
+	err = writeMCPConfig(configPath, "tinywasm", "3030", testAntigravityIDE())
+	if err != nil {
+		t.Fatalf("Second write failed: %v", err)
+	}
+
+	// Get new modification time
+	newStat, err := os.Stat(configPath)
+	if err != nil {
+		t.Fatalf("Failed to stat file after second write: %v", err)
+	}
+
+	// File should NOT have been modified
+	if !newStat.ModTime().Equal(initialModTime) {
+		t.Errorf("File was modified when config was identical. Initial: %v, New: %v",
+			initialModTime, newStat.ModTime())
 	}
 }

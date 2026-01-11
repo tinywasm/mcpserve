@@ -2,14 +2,45 @@ package mcpserve
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
 )
 
+// validateAppName checks if appName is valid (not empty or whitespace)
+func validateAppName(appName string) error {
+	if strings.TrimSpace(appName) == "" {
+		return errors.New("appName cannot be empty")
+	}
+	return nil
+}
+
+// needsUpdate checks if the server entry needs to be updated by comparing URL and ExtraFields
+func needsUpdate(existingEntry map[string]any, newEntry map[string]any, ide IDEInfo) bool {
+	// Compare URL
+	existingURL, _ := existingEntry[ide.URLKey].(string)
+	newURL, _ := newEntry[ide.URLKey].(string)
+	if existingURL != newURL {
+		return true
+	}
+	// Compare ExtraFields
+	for k, v := range ide.ExtraFields {
+		if existingEntry[k] != v {
+			return true
+		}
+	}
+	return false
+}
+
 // writeMCPConfig is the unified config writer for all IDEs.
-// It reads existing config, preserves all servers, and adds/updates our entry.
+// It reads existing config, preserves all servers, and adds/updates our entry only if needed.
 func writeMCPConfig(configPath string, appName string, mcpPort string, ide IDEInfo) error {
+	// Validate appName first
+	if err := validateAppName(appName); err != nil {
+		return err
+	}
+
 	// Read existing config as raw JSON to preserve all fields
 	var rawConfig map[string]any
 
@@ -38,8 +69,32 @@ func writeMCPConfig(configPath string, appName string, mcpPort string, ide IDEIn
 		servers = make(map[string]any)
 	}
 
-	// Build our server entry
+	// Cleanup duplicate URL entries (e.g., "-mcp" and "tinywasm-mcp" with same URL)
+	expectedURL := fmt.Sprintf("http://localhost:%s/mcp", mcpPort)
 	serverID := fmt.Sprintf("%s-mcp", strings.ToLower(appName))
+
+	// Find all entries with our URL
+	duplicatesRemoved := false
+	var keysWithOurURL []string
+	for key, entry := range servers {
+		if serverEntry, ok := entry.(map[string]any); ok {
+			if url, _ := serverEntry[ide.URLKey].(string); url == expectedURL {
+				keysWithOurURL = append(keysWithOurURL, key)
+			}
+		}
+	}
+
+	// If more than one entry has our URL, keep only the correct one (serverID)
+	if len(keysWithOurURL) > 1 {
+		for _, key := range keysWithOurURL {
+			if key != serverID {
+				delete(servers, key)
+				duplicatesRemoved = true
+			}
+		}
+	}
+
+	// Build our server entry
 	serverEntry := map[string]any{
 		ide.URLKey: fmt.Sprintf("http://localhost:%s/mcp", mcpPort),
 	}
@@ -47,6 +102,18 @@ func writeMCPConfig(configPath string, appName string, mcpPort string, ide IDEIn
 	// Add extra fields (e.g., "type": "http", "autoStart": true)
 	for k, v := range ide.ExtraFields {
 		serverEntry[k] = v
+	}
+
+	// Check if entry already exists and is identical (skip if duplicates were cleaned)
+	if !duplicatesRemoved {
+		if existingEntry, hasEntry := servers[serverID]; hasEntry {
+			if existing, ok := existingEntry.(map[string]any); ok {
+				if !needsUpdate(existing, serverEntry, ide) {
+					// Config is identical, no need to write
+					return nil
+				}
+			}
+		}
 	}
 
 	// Add/update our server entry
