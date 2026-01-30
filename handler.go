@@ -30,6 +30,7 @@ type Handler struct {
 	tui          TuiInterface
 	exitChan     chan bool
 	log          func(messages ...any) // Private logger, set via SetLog
+	ideStatus    string                // Summary of IDE configuration
 
 	// Internal state
 	httpServer any // *http.Server or compatible
@@ -101,10 +102,15 @@ func (h *Handler) Serve() {
 
 	h.mu.Lock()
 	h.httpServer = httpServer
+	ideMsg := h.ideStatus
 	h.mu.Unlock()
 
-	h.log("Starting MCP HTTP server on port", h.config.Port)
-	h.log("MCP endpoint: http://localhost:" + h.config.Port + "/mcp")
+	// Consolidate startup messages into ONE log
+	startupMsg := fmt.Sprintf("Started MCP HTTP server on :%s/mcp", h.config.Port)
+	if ideMsg != "" {
+		startupMsg = fmt.Sprintf("%s (%s)", startupMsg, ideMsg)
+	}
+	h.log(startupMsg)
 
 	go func() {
 		if err := httpServer.Start(":" + h.config.Port); err != nil && err != http.ErrServerClosed {

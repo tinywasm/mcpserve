@@ -81,13 +81,18 @@ func (h *Handler) ConfigureIDEs() {
 		}
 	}
 
+	var ideStatus string
 	if configPathResult != "" {
-		status := "No changes"
+		status := "no changes"
 		if len(updatedIDEs) > 0 {
-			status = fmt.Sprintf("Updated: %s", strings.Join(updatedIDEs, ", "))
+			status = fmt.Sprintf("updated: %s", strings.Join(updatedIDEs, ", "))
 		}
-		h.log(fmt.Sprintf("IDE Config: %s (%s)", configPathResult, status))
+		ideStatus = fmt.Sprintf("IDE: %s, %s", configPathResult, status)
 	}
+
+	h.mu.Lock()
+	h.ideStatus = ideStatus
+	h.mu.Unlock()
 }
 
 // getVSCodeConfigPath returns the platform-specific VS Code User directory path.
