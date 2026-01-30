@@ -35,10 +35,10 @@ func needsUpdate(existingEntry map[string]any, newEntry map[string]any, ide IDEI
 
 // writeMCPConfig is the unified config writer for all IDEs.
 // It reads existing config, preserves all servers, and adds/updates our entry only if needed.
-func writeMCPConfig(configPath string, appName string, mcpPort string, ide IDEInfo) error {
+func writeMCPConfig(configPath string, appName string, mcpPort string, ide IDEInfo) (bool, error) {
 	// Validate appName first
 	if err := validateAppName(appName); err != nil {
-		return err
+		return false, err
 	}
 
 	// Read existing config as raw JSON to preserve all fields
@@ -49,9 +49,9 @@ func writeMCPConfig(configPath string, appName string, mcpPort string, ide IDEIn
 		if os.IsNotExist(err) {
 			rawConfig = make(map[string]any)
 		} else if os.IsPermission(err) {
-			return nil // Silent failure
+			return false, nil // Silent failure
 		} else {
-			return err
+			return false, err
 		}
 	} else {
 		if err := json.Unmarshal(data, &rawConfig); err != nil {
@@ -103,7 +103,7 @@ func writeMCPConfig(configPath string, appName string, mcpPort string, ide IDEIn
 			if existing, ok := existingEntry.(map[string]any); ok {
 				if !needsUpdate(existing, serverEntry, ide) {
 					// Config is identical, no need to write
-					return nil
+					return false, nil
 				}
 			}
 		}
@@ -123,15 +123,15 @@ func writeMCPConfig(configPath string, appName string, mcpPort string, ide IDEIn
 	// Marshal with tabs
 	updatedData, err := json.MarshalIndent(rawConfig, "", "\t")
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	if err := os.WriteFile(configPath, updatedData, 0644); err != nil {
 		if os.IsPermission(err) {
-			return nil
+			return false, nil
 		}
-		return err
+		return false, err
 	}
 
-	return nil
+	return true, nil
 }

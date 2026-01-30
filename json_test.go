@@ -38,7 +38,7 @@ func TestWriteMCPConfig_CleansDuplicateURLEntries(t *testing.T) {
 		}
 
 		// Run writeMCPConfig - should remove duplicate "-mcp"
-		err := writeMCPConfig(configPath, "tinywasm", "3030", testAntigravityIDE())
+		_, err := writeMCPConfig(configPath, "tinywasm", "3030", testAntigravityIDE())
 		if err != nil {
 			t.Fatalf("writeMCPConfig failed: %v", err)
 		}
@@ -97,7 +97,7 @@ func TestWriteMCPConfig_CleansDuplicateURLEntries(t *testing.T) {
 		}
 
 		// Run writeMCPConfig - should remove duplicate "-mcp"
-		err := writeMCPConfig(configPath, "tinywasm", "3030", testVSCodeIDE())
+		_, err := writeMCPConfig(configPath, "tinywasm", "3030", testVSCodeIDE())
 		if err != nil {
 			t.Fatalf("writeMCPConfig failed: %v", err)
 		}
@@ -146,7 +146,7 @@ func TestWriteMCPConfig_CleansDuplicateURLEntries(t *testing.T) {
 			t.Fatalf("Failed to write config: %v", err)
 		}
 
-		err := writeMCPConfig(configPath, "tinywasm", "3030", testAntigravityIDE())
+		_, err := writeMCPConfig(configPath, "tinywasm", "3030", testAntigravityIDE())
 		if err != nil {
 			t.Fatalf("writeMCPConfig failed: %v", err)
 		}
@@ -192,7 +192,7 @@ func TestWriteMCPConfig_MigratesOldServerID(t *testing.T) {
 	}
 
 	// Run with appName "tinywasm" - now generates "tinywasm" (not "tinywasm-mcp")
-	err := writeMCPConfig(configPath, "tinywasm", "3030", testAntigravityIDE())
+	_, err := writeMCPConfig(configPath, "tinywasm", "3030", testAntigravityIDE())
 	if err != nil {
 		t.Fatalf("writeMCPConfig failed: %v", err)
 	}
@@ -229,7 +229,7 @@ func TestWriteMCPConfig_UpdatesOnlyWhenDifferent(t *testing.T) {
 	configPath := filepath.Join(tempDir, "mcp_config.json")
 
 	// Create initial config with port 9999
-	err := writeMCPConfig(configPath, "tinywasm", "9999", testAntigravityIDE())
+	_, err := writeMCPConfig(configPath, "tinywasm", "9999", testAntigravityIDE())
 	if err != nil {
 		t.Fatalf("Initial write failed: %v", err)
 	}
@@ -245,7 +245,7 @@ func TestWriteMCPConfig_UpdatesOnlyWhenDifferent(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	// Write config with different port (3030)
-	err = writeMCPConfig(configPath, "tinywasm", "3030", testAntigravityIDE())
+	_, err = writeMCPConfig(configPath, "tinywasm", "3030", testAntigravityIDE())
 	if err != nil {
 		t.Fatalf("Update write failed: %v", err)
 	}

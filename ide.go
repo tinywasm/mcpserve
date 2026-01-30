@@ -2,9 +2,11 @@ package mcpserve
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 )
 
 // IDEInfo represents a supported IDE and its MCP configuration format
@@ -46,34 +48,45 @@ func (h *Handler) ConfigureIDEs() {
 		},
 	}
 
+	updatedIDEs := []string{}
+	var configPathResult string
+
 	for _, ide := range ides {
 		basePath, err := ide.GetConfigDir()
 		if err != nil {
-			h.log("IDE config skip: %s - GetConfigDir error: %v", ide.Name, err)
+			// Silently skip if we can't get the config dir (e.g., unsupported OS)
 			continue
 		}
 
 		// Create the directory if it doesn't exist
 		if _, err := os.Stat(basePath); os.IsNotExist(err) {
 			if err := os.MkdirAll(basePath, 0755); err != nil {
-				h.log("IDE config skip: %s - MkdirAll error: %v", ide.Name, err)
 				continue
 			}
 		}
 
 		configPaths, err := findMCPConfigPaths(basePath, ide.ConfigFileName)
 		if err != nil {
-			h.log("IDE config skip: %s - findMCPConfigPaths error: %v", ide.Name, err)
 			continue
 		}
 
 		for _, configPath := range configPaths {
-			if err := writeMCPConfig(configPath, h.config.AppName, h.config.Port, ide); err != nil {
-				h.log("IDE config error: %s - writeMCPConfig error: %v", ide.Name, err)
-			} else {
-				h.log("IDE config updated: %s at %s", ide.Name, configPath)
+			if configPathResult == "" {
+				configPathResult = basePath
+			}
+			updated, err := writeMCPConfig(configPath, h.config.AppName, h.config.Port, ide)
+			if err == nil && updated {
+				updatedIDEs = append(updatedIDEs, ide.Name)
 			}
 		}
+	}
+
+	if configPathResult != "" {
+		status := "No changes"
+		if len(updatedIDEs) > 0 {
+			status = fmt.Sprintf("Updated: %s", strings.Join(updatedIDEs, ", "))
+		}
+		h.log(fmt.Sprintf("IDE Config: %s (%s)", configPathResult, status))
 	}
 }
 

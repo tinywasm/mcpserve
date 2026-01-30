@@ -35,7 +35,7 @@ func TestWriteMCPConfig_Antigravity(t *testing.T) {
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "mcp_config.json")
 
-	err := writeMCPConfig(configPath, "tinywasm", "3030", testAntigravityIDE())
+	_, err := writeMCPConfig(configPath, "tinywasm", "3030", testAntigravityIDE())
 	if err != nil {
 		t.Fatalf("writeMCPConfig failed: %v", err)
 	}
@@ -74,9 +74,12 @@ func TestWriteMCPConfig_VSCode(t *testing.T) {
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "mcp.json")
 
-	err := writeMCPConfig(configPath, "tinywasm", "3030", testVSCodeIDE())
+	updated, err := writeMCPConfig(configPath, "tinywasm", "3030", testVSCodeIDE())
 	if err != nil {
 		t.Fatalf("writeMCPConfig failed: %v", err)
+	}
+	if !updated {
+		t.Error("Expected updated=true on first write")
 	}
 
 	data, err := os.ReadFile(configPath)
@@ -139,7 +142,7 @@ func TestWriteMCPConfig_PreservesExistingServers(t *testing.T) {
 	}
 
 	// Write tinywasm config
-	err := writeMCPConfig(configPath, "tinywasm", "3030", testAntigravityIDE())
+	_, err := writeMCPConfig(configPath, "tinywasm", "3030", testAntigravityIDE())
 	if err != nil {
 		t.Fatalf("writeMCPConfig failed: %v", err)
 	}
@@ -201,7 +204,7 @@ func TestWriteMCPConfig_UpdatesExistingEntry(t *testing.T) {
 		t.Fatalf("Failed to write existing config: %v", err)
 	}
 
-	err := writeMCPConfig(configPath, "tinywasm", "3030", testAntigravityIDE())
+	_, err := writeMCPConfig(configPath, "tinywasm", "3030", testAntigravityIDE())
 	if err != nil {
 		t.Fatalf("writeMCPConfig failed: %v", err)
 	}
@@ -282,7 +285,7 @@ func TestWriteMCPConfig_EmptyAppName_ReturnsError(t *testing.T) {
 	configPath := filepath.Join(tempDir, "mcp_config.json")
 
 	// Test empty appName
-	err := writeMCPConfig(configPath, "", "3030", testAntigravityIDE())
+	_, err := writeMCPConfig(configPath, "", "3030", testAntigravityIDE())
 	if err == nil {
 		t.Error("Expected error for empty appName")
 	}
@@ -293,7 +296,7 @@ func TestWriteMCPConfig_EmptyAppName_ReturnsError(t *testing.T) {
 	}
 
 	// Test whitespace-only appName
-	err = writeMCPConfig(configPath, "   ", "3030", testAntigravityIDE())
+	_, err = writeMCPConfig(configPath, "   ", "3030", testAntigravityIDE())
 	if err == nil {
 		t.Error("Expected error for whitespace-only appName")
 	}
@@ -305,9 +308,12 @@ func TestWriteMCPConfig_NoWriteWhenIdentical(t *testing.T) {
 	configPath := filepath.Join(tempDir, "mcp_config.json")
 
 	// Create initial config
-	err := writeMCPConfig(configPath, "tinywasm", "3030", testAntigravityIDE())
+	updated, err := writeMCPConfig(configPath, "tinywasm", "3030", testAntigravityIDE())
 	if err != nil {
 		t.Fatalf("Initial write failed: %v", err)
+	}
+	if !updated {
+		t.Error("Expected updated=true on initial write")
 	}
 
 	// Get initial modification time
@@ -321,9 +327,13 @@ func TestWriteMCPConfig_NoWriteWhenIdentical(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	// Write same config again
-	err = writeMCPConfig(configPath, "tinywasm", "3030", testAntigravityIDE())
+	updated, err = writeMCPConfig(configPath, "tinywasm", "3030", testAntigravityIDE())
 	if err != nil {
 		t.Fatalf("Second write failed: %v", err)
+	}
+
+	if updated {
+		t.Error("Expected updated=false on second identical write")
 	}
 
 	// Get new modification time
