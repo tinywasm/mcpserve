@@ -49,7 +49,6 @@ func (h *Handler) ConfigureIDEs() {
 	}
 
 	updatedIDEs := []string{}
-	var configPathResult string
 
 	for _, ide := range ides {
 		basePath, err := ide.GetConfigDir()
@@ -70,28 +69,26 @@ func (h *Handler) ConfigureIDEs() {
 			continue
 		}
 
+		ideUpdated := false
 		for _, configPath := range configPaths {
-			if configPathResult == "" {
-				configPathResult = basePath
-			}
 			updated, err := writeMCPConfig(configPath, h.config.AppName, h.config.Port, ide)
 			if err == nil && updated {
-				updatedIDEs = append(updatedIDEs, ide.Name)
+				ideUpdated = true
 			}
+		}
+		if ideUpdated {
+			updatedIDEs = append(updatedIDEs, ide.Name)
 		}
 	}
 
-	var ideStatus string
-	if configPathResult != "" {
-		status := "no changes"
-		if len(updatedIDEs) > 0 {
-			status = fmt.Sprintf("updated: %s", strings.Join(updatedIDEs, ", "))
-		}
-		ideStatus = fmt.Sprintf("IDE: %s, %s", configPathResult, status)
+	totalIDEs := len(ides)
+	status := fmt.Sprintf("%d of %d IDEs updated", len(updatedIDEs), totalIDEs)
+	if len(updatedIDEs) > 0 {
+		status = fmt.Sprintf("%s: %s", status, strings.Join(updatedIDEs, ", "))
 	}
 
 	h.mu.Lock()
-	h.ideStatus = ideStatus
+	h.ideStatus = status
 	h.mu.Unlock()
 }
 
