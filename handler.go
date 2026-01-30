@@ -106,7 +106,7 @@ func (h *Handler) Serve() {
 	h.mu.Unlock()
 
 	// Consolidate startup messages into ONE log
-	startupMsg := fmt.Sprintf("Started MCP HTTP server on :%s/mcp", h.config.Port)
+	startupMsg := fmt.Sprintf("Started on :%s/mcp", h.config.Port)
 	if ideMsg != "" {
 		startupMsg = fmt.Sprintf("%s (%s)", startupMsg, ideMsg)
 	}
