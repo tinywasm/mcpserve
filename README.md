@@ -6,13 +6,13 @@
 Standalone, decoupled Model Context Protocol (MCP) server for the TinyWasm ecosystem.
 
 ## Core Features
-- **Decoupled Architecture**: Domain handlers remain agnostic of MCP dependencies.
-- **Reflection Discovery**: Automatic tool extraction via `GetMCPToolsMetadata()`.
+- **Decoupled Architecture**: Domain handlers remain agnostic of MCP types while using shared metadata.
+- **Interface-based Discovery**: Strict typing via `ToolProvider` interface.
 - **IDE Integration**: automated configuration for VS Code & Antigravity (Profiles supported).
 
 ## Setup
 ```go
-h.mcp = mcpserve.NewHandler(config, handlers, tui, exit)
+h.mcp = mcpserve.NewHandler(config, toolProviders, tui, exit)
 h.mcp.ConfigureIDEs() // Auto-configures IDEs
 go h.mcp.Serve()      // Starts HTTP server
 ```

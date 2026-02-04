@@ -7,9 +7,9 @@ sequenceDiagram
     participant EXEC as Generic Executor
     participant DOM as Domain Handler (e.g. WasmClient)
 
-    Note over SRV, DOM: Initialization (Reflection)
+    Note over SRV, DOM: Initialization (Interface)
     SRV->>DOM: Call GetMCPToolsMetadata()
-    DOM-->>SRV: Return []ToolMetadata (Local Types)
+    DOM-->>SRV: Return []mcpserve.ToolMetadata (Shared Types)
 
     Note over LLM, DOM: Tool Call
     LLM->>SRV: JSON-RPC: tools/call (name, args)
