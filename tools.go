@@ -1,16 +1,16 @@
 package mcpserve
 
-import (
-	"fmt"
-	"reflect"
-
-	"github.com/mark3labs/mcp-go/mcp"
-)
+import "github.com/mark3labs/mcp-go/mcp"
 
 // Loggable defines the interface for handlers that support logging
 type Loggable interface {
 	Name() string
 	SetLog(logger func(message ...any))
+}
+
+// ToolProvider defines the interface for handlers that support MCP tools
+type ToolProvider interface {
+	GetMCPToolsMetadata() []ToolMetadata
 }
 
 // ToolExecutor defines how a tool should be executed
@@ -35,158 +35,6 @@ type ParameterMetadata struct {
 	Type        string // "string", "number", "boolean"
 	EnumValues  []string
 	Default     any
-}
-
-// mcpToolsFromHandler loads all MCP tools from a handler using reflection
-// Looks for a method called "GetMCPToolsMetadata() []ToolMetadata"
-func (h *Handler) mcpToolsFromHandler(handler any) ([]ToolMetadata, error) {
-	handlerValue := reflect.ValueOf(handler)
-	method := handlerValue.MethodByName("GetMCPToolsMetadata")
-
-	if !method.IsValid() {
-		return nil, fmt.Errorf("method GetMCPToolsMetadata not found on handler")
-	}
-
-	// Call the method (should return []ToolMetadata or compatible slice)
-	results := method.Call(nil)
-	if len(results) != 1 {
-		return nil, fmt.Errorf("method GetMCPToolsMetadata should return exactly one value")
-	}
-
-	// Convert result to []ToolMetadata using reflection
-	return h.convertToToolMetadataSlice(results[0].Interface())
-}
-
-// convertToToolMetadataSlice converts any compatible slice to []ToolMetadata
-func (h *Handler) convertToToolMetadataSlice(source any) ([]ToolMetadata, error) {
-	sourceValue := reflect.ValueOf(source)
-
-	// Check if it's a slice
-	if sourceValue.Kind() != reflect.Slice {
-		return nil, fmt.Errorf("expected slice, got %T", source)
-	}
-
-	count := sourceValue.Len()
-	result := make([]ToolMetadata, count)
-
-	for i := 0; i < count; i++ {
-		meta, err := h.convertToToolMetadata(sourceValue.Index(i).Interface())
-		if err != nil {
-			return nil, fmt.Errorf("tool %d: %w", i, err)
-		}
-		result[i] = meta
-	}
-
-	return result, nil
-}
-
-// convertToToolMetadata converts any compatible struct to ToolMetadata using reflection
-func (h *Handler) convertToToolMetadata(source any) (ToolMetadata, error) {
-	sourceValue := reflect.ValueOf(source)
-
-	// Check if it's already the correct type
-	if meta, ok := source.(ToolMetadata); ok {
-		return meta, nil
-	}
-
-	// Use reflection to extract fields
-	meta := ToolMetadata{}
-
-	// Extract Name field
-	if nameField := sourceValue.FieldByName("Name"); nameField.IsValid() && nameField.Kind() == reflect.String {
-		meta.Name = nameField.String()
-	} else {
-		return meta, fmt.Errorf("missing or invalid Name field in %T", source)
-	}
-
-	// Extract Description field
-	if descField := sourceValue.FieldByName("Description"); descField.IsValid() && descField.Kind() == reflect.String {
-		meta.Description = descField.String()
-	}
-
-	// Extract Parameters field
-	if paramsField := sourceValue.FieldByName("Parameters"); paramsField.IsValid() && paramsField.Kind() == reflect.Slice {
-		paramsCount := paramsField.Len()
-		meta.Parameters = make([]ParameterMetadata, paramsCount)
-
-		for i := 0; i < paramsCount; i++ {
-			paramValue := paramsField.Index(i)
-			param, err := convertToParameterMetadata(paramValue.Interface())
-			if err != nil {
-				return meta, fmt.Errorf("parameter %d: %w", i, err)
-			}
-			meta.Parameters[i] = param
-		}
-	}
-
-	// Extract Execute field (function)
-	if execField := sourceValue.FieldByName("Execute"); execField.IsValid() && execField.Kind() == reflect.Func {
-		// Simply assign the function directly without wrapping
-		// The executor.go will handle calling it with the right arguments
-		funcType := execField.Type()
-		if funcType.NumIn() == 1 {
-			// Function signature: func(args map[string]any)
-			meta.Execute = func(args map[string]any) {
-				execField.Call([]reflect.Value{
-					reflect.ValueOf(args),
-				})
-			}
-		} else {
-			return meta, fmt.Errorf("Execute function must have signature: func(args map[string]any)")
-		}
-	}
-
-	return meta, nil
-}
-
-// convertToParameterMetadata converts any compatible struct to ParameterMetadata
-func convertToParameterMetadata(source any) (ParameterMetadata, error) {
-	sourceValue := reflect.ValueOf(source)
-
-	// Check if it's already the correct type
-	if param, ok := source.(ParameterMetadata); ok {
-		return param, nil
-	}
-
-	param := ParameterMetadata{}
-
-	// Extract Name
-	if field := sourceValue.FieldByName("Name"); field.IsValid() && field.Kind() == reflect.String {
-		param.Name = field.String()
-	}
-
-	// Extract Description
-	if field := sourceValue.FieldByName("Description"); field.IsValid() && field.Kind() == reflect.String {
-		param.Description = field.String()
-	}
-
-	// Extract Required
-	if field := sourceValue.FieldByName("Required"); field.IsValid() && field.Kind() == reflect.Bool {
-		param.Required = field.Bool()
-	}
-
-	// Extract Type
-	if field := sourceValue.FieldByName("Type"); field.IsValid() && field.Kind() == reflect.String {
-		param.Type = field.String()
-	}
-
-	// Extract EnumValues
-	if field := sourceValue.FieldByName("EnumValues"); field.IsValid() && field.Kind() == reflect.Slice {
-		count := field.Len()
-		param.EnumValues = make([]string, count)
-		for i := 0; i < count; i++ {
-			if elem := field.Index(i); elem.Kind() == reflect.String {
-				param.EnumValues[i] = elem.String()
-			}
-		}
-	}
-
-	// Extract Default
-	if field := sourceValue.FieldByName("Default"); field.IsValid() {
-		param.Default = field.Interface()
-	}
-
-	return param, nil
 }
 
 // buildMCPTool constructs MCP tool from metadata

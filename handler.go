@@ -26,7 +26,7 @@ type TuiInterface interface {
 // Handler handles the Model Context Protocol server and configuration
 type Handler struct {
 	config       Config
-	toolHandlers []any // Handlers that implement GetMCPToolsMetadata (discovered via reflection)
+	toolHandlers []ToolProvider // Handlers that implement ToolProvider interface
 	tui          TuiInterface
 	exitChan     chan bool
 	log          func(messages ...any) // Private logger, set via SetLog
@@ -39,7 +39,7 @@ type Handler struct {
 }
 
 // NewHandler creates a new MCP handler with minimal dependencies
-func NewHandler(config Config, toolHandlers []any, tui TuiInterface, exitChan chan bool) *Handler {
+func NewHandler(config Config, toolHandlers []ToolProvider, tui TuiInterface, exitChan chan bool) *Handler {
 	return &Handler{
 		config:       config,
 		toolHandlers: toolHandlers,
@@ -78,16 +78,12 @@ func (h *Handler) Serve() {
 		server.WithToolCapabilities(true),
 	)
 
-	// Load tools from all registered handlers (using reflection)
+	// Load tools from all registered handlers
 	for _, handler := range h.toolHandlers {
 		if handler == nil {
 			continue
 		}
-		tools, err := h.mcpToolsFromHandler(handler)
-		if err != nil {
-			h.log(fmt.Sprintf("Warning: Failed to load tools from handler %T: %v", handler, err))
-			continue
-		}
+		tools := handler.GetMCPToolsMetadata()
 		for _, toolMeta := range tools {
 			tool := buildMCPTool(toolMeta)
 			s.AddTool(*tool, h.mcpExecuteTool(handler, toolMeta.Execute))

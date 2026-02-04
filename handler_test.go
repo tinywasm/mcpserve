@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// mockHandler implements GetMCPToolsMetadata for testing
+// mockHandler implements ToolProvider for testing
 type mockHandler struct {
 	log func(message ...any)
 }
@@ -43,7 +43,7 @@ func TestNewHandler(t *testing.T) {
 		ServerVersion: "1.0.0",
 	}
 
-	mockHandlers := []any{&mockHandler{}}
+	mockHandlers := []ToolProvider{&mockHandler{}}
 	exitChan := make(chan bool, 1)
 	tui := &mockTUI{}
 
@@ -62,20 +62,16 @@ func TestNewHandler(t *testing.T) {
 	}
 }
 
-// TestToolDiscovery verifies tool metadata extraction
-func TestToolDiscovery(t *testing.T) {
+// TestToolMetadataRegistration verifies tool metadata extraction
+func TestToolMetadataRegistration(t *testing.T) {
 	mock := &mockHandler{}
 
 	// Create a handler to use the method
 	config := Config{Port: "3030", ServerName: "Test", ServerVersion: "1.0.0"}
 	exitChan := make(chan bool, 1)
-	handler := NewHandler(config, []any{mock}, &mockTUI{}, exitChan)
+	_ = NewHandler(config, []ToolProvider{mock}, &mockTUI{}, exitChan)
 
-	tools, err := handler.mcpToolsFromHandler(mock)
-
-	if err != nil {
-		t.Fatalf("Failed to extract tools: %v", err)
-	}
+	tools := mock.GetMCPToolsMetadata()
 
 	if len(tools) != 1 {
 		t.Fatalf("Expected 1 tool, got %d", len(tools))
@@ -97,13 +93,7 @@ func TestToolExecution(t *testing.T) {
 
 	// Create a handler to use the method
 	config := Config{Port: "3030", ServerName: "Test", ServerVersion: "1.0.0"}
-	exitChan := make(chan bool, 1)
-	handler := NewHandler(config, []any{mock}, &mockTUI{}, exitChan)
-
-	tools, err := handler.mcpToolsFromHandler(mock)
-	if err != nil {
-		t.Fatalf("Failed to extract tools: %v", err)
-	}
+	_ = NewHandler(config, []ToolProvider{mock}, &mockTUI{}, make(chan bool))
 
 	// Track if tool was executed
 	executed := false
@@ -115,6 +105,7 @@ func TestToolExecution(t *testing.T) {
 		}
 	})
 
+	tools := mock.GetMCPToolsMetadata()
 	// Execute tool directly
 	tools[0].Execute(map[string]any{})
 
@@ -135,7 +126,7 @@ func TestServeStartsServer(t *testing.T) {
 	exitChan := make(chan bool, 1)
 	tui := &mockTUI{}
 
-	handler := NewHandler(config, []any{mock}, tui, exitChan)
+	handler := NewHandler(config, []ToolProvider{mock}, tui, exitChan)
 	// handler.SetLog(func(messages ...any) { t.Log(messages...) })
 
 	// Start server in goroutine
