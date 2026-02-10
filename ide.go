@@ -19,8 +19,9 @@ type IDEInfo struct {
 	// IDE-specific JSON format configuration
 	ServersKey  string         // "servers" for VS Code, "mcpServers" for Antigravity
 	URLKey      string         // "url" for VS Code, "serverUrl" for Antigravity
-	ExtraFields map[string]any // Additional fields like "type", "autoStart"
-	HasInputs   bool           // VS Code has "inputs" array, Antigravity doesn't
+	ExtraFields  map[string]any // Additional fields like "type", "autoStart"
+	HasInputs    bool           // VS Code has "inputs" array, Antigravity doesn't
+	SkipProfiles bool           // true = single config file, no profile scanning
 }
 
 // ConfigureIDEs automatically configures supported IDEs with this MCP server
@@ -46,6 +47,17 @@ func (h *Handler) ConfigureIDEs() {
 			ExtraFields:    nil,
 			HasInputs:      false,
 		},
+		{
+			ID:             "claude-code",
+			Name:           "Claude Code",
+			GetConfigDir:   getClaudeCodeConfigPath,
+			ConfigFileName: ".claude.json",
+			ServersKey:     "mcpServers",
+			URLKey:         "url",
+			ExtraFields:    map[string]any{"type": "http"},
+			HasInputs:      false,
+			SkipProfiles:   true,
+		},
 	}
 
 	updatedIDEs := []string{}
@@ -57,16 +69,21 @@ func (h *Handler) ConfigureIDEs() {
 			continue
 		}
 
-		// Create the directory if it doesn't exist
-		if _, err := os.Stat(basePath); os.IsNotExist(err) {
-			if err := os.MkdirAll(basePath, 0755); err != nil {
+		var configPaths []string
+		if ide.SkipProfiles {
+			configPaths = []string{filepath.Join(basePath, ide.ConfigFileName)}
+		} else {
+			// Create the directory if it doesn't exist
+			if _, err := os.Stat(basePath); os.IsNotExist(err) {
+				if err := os.MkdirAll(basePath, 0755); err != nil {
+					continue
+				}
+			}
+
+			configPaths, err = findMCPConfigPaths(basePath, ide.ConfigFileName)
+			if err != nil {
 				continue
 			}
-		}
-
-		configPaths, err := findMCPConfigPaths(basePath, ide.ConfigFileName)
-		if err != nil {
-			continue
 		}
 
 		ideUpdated := false
@@ -122,6 +139,11 @@ func getAntigravityConfigPath() (string, error) {
 		return "", err
 	}
 	return filepath.Join(homeDir, ".gemini", "antigravity"), nil
+}
+
+// getClaudeCodeConfigPath returns the home directory (Claude Code config is ~/.claude.json).
+func getClaudeCodeConfigPath() (string, error) {
+	return os.UserHomeDir()
 }
 
 // findMCPConfigPaths resolves all config file paths based on IDE profile structure.

@@ -30,6 +30,18 @@ func testVSCodeIDE() IDEInfo {
 	}
 }
 
+func testClaudeCodeIDE() IDEInfo {
+	return IDEInfo{
+		ID:           "claude-code",
+		Name:         "Claude Code",
+		ServersKey:   "mcpServers",
+		URLKey:       "url",
+		ExtraFields:  map[string]any{"type": "http"},
+		HasInputs:    false,
+		SkipProfiles: true,
+	}
+}
+
 // TestWriteMCPConfig_Antigravity verifies Antigravity-specific config format
 func TestWriteMCPConfig_Antigravity(t *testing.T) {
 	tempDir := t.TempDir()
@@ -346,5 +358,108 @@ func TestWriteMCPConfig_NoWriteWhenIdentical(t *testing.T) {
 	if !newStat.ModTime().Equal(initialModTime) {
 		t.Errorf("File was modified when config was identical. Initial: %v, New: %v",
 			initialModTime, newStat.ModTime())
+	}
+}
+
+// TestWriteMCPConfig_ClaudeCode verifies Claude Code-specific config format
+func TestWriteMCPConfig_ClaudeCode(t *testing.T) {
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, ".claude.json")
+
+	updated, err := writeMCPConfig(configPath, "tinywasm", "3030", testClaudeCodeIDE())
+	if err != nil {
+		t.Fatalf("writeMCPConfig failed: %v", err)
+	}
+	if !updated {
+		t.Error("Expected updated=true on first write")
+	}
+
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("Failed to read config: %v", err)
+	}
+
+	var rawConfig map[string]any
+	if err := json.Unmarshal(data, &rawConfig); err != nil {
+		t.Fatalf("Failed to parse config: %v", err)
+	}
+
+	// Verify mcpServers key
+	if _, exists := rawConfig["mcpServers"]; !exists {
+		t.Error("Should have mcpServers key")
+	}
+
+	// Verify no inputs for Claude Code
+	if _, exists := rawConfig["inputs"]; exists {
+		t.Error("Claude Code should NOT have inputs key")
+	}
+
+	servers := rawConfig["mcpServers"].(map[string]any)
+	server := servers["tinywasm"].(map[string]any)
+
+	if server["url"] != "http://localhost:3030/mcp" {
+		t.Errorf("Wrong url: %v", server["url"])
+	}
+	if server["type"] != "http" {
+		t.Errorf("Wrong type: %v", server["type"])
+	}
+}
+
+// TestWriteMCPConfig_ClaudeCode_PreservesExistingFields verifies session data is preserved
+func TestWriteMCPConfig_ClaudeCode_PreservesExistingFields(t *testing.T) {
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, ".claude.json")
+
+	// Simulate existing ~/.claude.json with session data
+	existingConfig := `{
+	"userID": "abc123",
+	"oauthAccount": {
+		"emailAddress": "test@example.com"
+	},
+	"cachedGrowthBookFeatures": {
+		"some_feature": true
+	}
+}`
+	if err := os.WriteFile(configPath, []byte(existingConfig), 0644); err != nil {
+		t.Fatalf("Failed to write existing config: %v", err)
+	}
+
+	_, err := writeMCPConfig(configPath, "tinywasm", "3030", testClaudeCodeIDE())
+	if err != nil {
+		t.Fatalf("writeMCPConfig failed: %v", err)
+	}
+
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("Failed to read config: %v", err)
+	}
+
+	var rawConfig map[string]any
+	if err := json.Unmarshal(data, &rawConfig); err != nil {
+		t.Fatalf("Failed to parse config: %v", err)
+	}
+
+	// Verify session data preserved
+	if rawConfig["userID"] != "abc123" {
+		t.Errorf("userID should be preserved, got: %v", rawConfig["userID"])
+	}
+
+	oauthAccount, ok := rawConfig["oauthAccount"].(map[string]any)
+	if !ok {
+		t.Fatal("oauthAccount should be preserved")
+	}
+	if oauthAccount["emailAddress"] != "test@example.com" {
+		t.Errorf("emailAddress should be preserved, got: %v", oauthAccount["emailAddress"])
+	}
+
+	if _, exists := rawConfig["cachedGrowthBookFeatures"]; !exists {
+		t.Error("cachedGrowthBookFeatures should be preserved")
+	}
+
+	// Verify MCP server was added
+	servers := rawConfig["mcpServers"].(map[string]any)
+	server := servers["tinywasm"].(map[string]any)
+	if server["url"] != "http://localhost:3030/mcp" {
+		t.Errorf("Wrong url: %v", server["url"])
 	}
 }
