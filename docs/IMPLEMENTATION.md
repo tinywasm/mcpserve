@@ -3,7 +3,7 @@
 `mcpserve` provides a decoupled MCP server using a common interface to avoid domain dependency on internal MCP types from `mcp-go`.
 
 ## Core Flow
-See [MCP_FLOW.mermaid](MCP_FLOW.mermaid) for visual flow.
+See [MCP_FLOW.mermaid](MCP_FLOW.md) for visual flow.
 
 1. **Discovery**: `mcpserve` takes `[]ToolProvider` handlers.
 2. **Interface**: For each handler, it calls `GetMCPToolsMetadata()` directly (see [tools.go](../tools.go)).

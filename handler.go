@@ -61,6 +61,12 @@ func (h *Handler) SetLog(f func(message ...any)) {
 	}
 }
 
+// URL returns the address where the MCP server is serving.
+// This allows *Handler to satisfy the agent.MCPServer interface via duck typing.
+func (h *Handler) URL() string {
+	return "http://localhost:" + h.config.Port + "/mcp"
+}
+
 // Serve starts the Model Context Protocol server for LLM integration via HTTP
 func (h *Handler) Serve() {
 	h.mu.Lock()
