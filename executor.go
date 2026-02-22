@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/tinywasm/mcp/mcp"
 )
 
 // BinaryData represents binary response from tools (imported from handlers)
