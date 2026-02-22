@@ -1,26 +1,26 @@
 ```mermaid
 sequenceDiagram
-    participant Bubble as devtui (Cliente)
-    participant MCPServer as mcpserve (Mux HTTP)
+    participant Bubble as devtui (Client)
+    participant MCPServer as mcpserve (HTTP Mux)
     participant SSEHub as sse.Server
     participant App as app (Callback)
 
-    %% Rutas del Mux %%
+    %% Mux Routes %%
     Bubble->>MCPServer: SSE Connect `GET /logs`
-    MCPServer->>SSEHub: Registra Cliente
+    MCPServer->>SSEHub: Register Client
     
-    App-->>MCPServer: Llama `h.log("Backend listo")`
+    App-->>MCPServer: Call `h.log("Backend ready")`
     MCPServer->>SSEHub: Broadcast Event
     SSEHub-->>Bubble: Send Event
     
-    %% Manejo de tool_calls %%
+    %% Handling tool_calls %%
     note over MCPServer, App: LLM Tool Call `start_development(/path)`
-    MCPServer->>App: Invoca h.restartCallback(/path)
-    App->>App: Cierra entorno anterior, abre el de /path
+    MCPServer->>App: Invoke h.restartCallback(/path)
+    App->>App: Close previous environment, open /path
     
-    %% Manejo de Key Actions %%
-    Bubble->>MCPServer: Presiona 'q', `POST /action?key=q`
-    MCPServer->>App: Invoca h.actionCallback('q')
-    App->>App: Termina watcher y web server (Halt)
+    %% Handling Key Actions %%
+    Bubble->>MCPServer: Press 'q', `POST /action?key=q`
+    MCPServer->>App: Invoke h.actionCallback('q')
+    App->>App: Terminate watcher and web server (Halt)
     MCPServer-->>Bubble: 200 OK
 ```
