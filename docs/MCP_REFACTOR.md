@@ -37,9 +37,11 @@ See [MCP_REFACTOR_FLOW.md](diagrams/MCP_REFACTOR_FLOW.md) for precise execution 
   - Define the actions endpoint: `mux.HandleFunc("/action", h.handleActionPOST)`.
   - Start the standard server: `http.ListenAndServe(":"+h.config.Port, mux)`.
 
-### 3.2. SSE Integration (`tinywasm/sse`)
-- **Dependency**: Add a field `sseHub *sse.Server` (or equivalent) in `mcpserve.Handler`.
-- **Log Broadcaster**: `mcpserve.Handler.log(messages...)` must not only write to STDOUT or local files but also construct a JSON/string message and push it to `h.sseHub.Broadcast(msg)`. 
+### 3.2. SSE Integration (via `github.com/tinywasm/sse`)
+- **Crucial Requirement**: You MUST use the existing `github.com/tinywasm/sse` package. **DO NOT** implement SSE from scratch.
+- **Dependency**: Import `github.com/tinywasm/sse`.
+- **Initialization**: Create the SSE instance (e.g., `tinySSE := sse.New(...)` and then the server `sseHub := tinySSE.Server(&sse.ServerConfig{...})`). Store this `sseHub *sse.SSEServer` as a field inside `mcpserve.Handler`.
+- **Log Broadcaster**: The `mcpserve.Handler.log(...)` function must not only write to STDOUT or local files but also construct a string/JSON message and publish it using `h.sseHub.Publish(msgData)`. 
 - This enables any connected `devtui` client to view live logs.
 
 ### 3.3. Project Lifecycle Management (`tools.go`)
