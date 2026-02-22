@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/mark3labs/mcp-go/server"
+	"github.com/tinywasm/mcp/server"
 	"github.com/tinywasm/sse"
 )
 
