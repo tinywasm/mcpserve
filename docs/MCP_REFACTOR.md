@@ -54,3 +54,6 @@ See [MCP_REFACTOR_FLOW.md](diagrams/MCP_REFACTOR_FLOW.md) for the exact executio
   - Read `r.URL.Query().Get("key")`.
   - If `key == 'q'`, trigger the project shutdown (same as above).
   - If `key == 'r'`, invoke the project's forced rebuild/reload watcher logic. Again, this requires a callback from `app` into `mcpserve` (`SetActionFunc(func(action string))`).
+
+## 4. Diagram-Driven Testing (DDT)
+As mandated by the `DEFAULT_LLM_SKILL.md`, the execution flow defined in the sequence diagram ([diagrams/MCP_REFACTOR_FLOW.md](diagrams/MCP_REFACTOR_FLOW.md)) **MUST** be covered by a corresponding Integration Test. You must write an integration test that exercises every branch, SSE event broadcasting, HTTP endpoint connection, and failure mode depicted in the Mermaid diagram.
