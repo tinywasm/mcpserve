@@ -3,7 +3,6 @@ package mcpserve
 import (
 	"context"
 	"fmt"
-	"net"
 	"net/http"
 	"sync"
 	"time"
@@ -35,13 +34,10 @@ type Handler struct {
 	ideStatus    string                // Summary of IDE configuration
 
 	// Callbacks
-	restartFunc func(context.Context, string) error
-	actionFunc  func(string)
+	actionFunc func(string)
 
 	// Internal state
-	sseHub        *sse.SSEServer
-	projectCancel context.CancelFunc
-	projectDone   chan struct{}
+	sseHub *sse.SSEServer
 
 	httpServer any // *http.Server or compatible
 	mu         sync.Mutex
@@ -58,7 +54,7 @@ func NewHandler(config Config, toolHandlers []ToolProvider, tui TuiInterface, ex
 	}
 	// Initialize log with default no-op that also tries to publish to SSE (if available)
 	h.log = func(messages ...any) {
-		h.publishLog(fmt.Sprint(messages...))
+		h.PublishLog(fmt.Sprint(messages...))
 	}
 	return h
 }
@@ -75,7 +71,7 @@ func (h *Handler) SetLog(f func(message ...any)) {
 			f(messages...)
 		}
 		// Also publish to SSE
-		h.publishLog(fmt.Sprint(messages...))
+		h.PublishLog(fmt.Sprint(messages...))
 	}
 }
 
@@ -85,13 +81,8 @@ func (h *Handler) URL() string {
 	return "http://localhost:" + h.config.Port + "/mcp"
 }
 
-// SetProjectRestartFunc sets the callback for restarting the project
-func (h *Handler) SetProjectRestartFunc(restartFunc func(context.Context, string) error) {
-	h.restartFunc = restartFunc
-}
-
-// SetActionFunc sets the callback for UI actions
-func (h *Handler) SetActionFunc(actionFunc func(string)) {
+// OnUIAction sets the callback for generic UI actions triggered from TUI or IDE
+func (h *Handler) OnUIAction(actionFunc func(string)) {
 	h.actionFunc = actionFunc
 }
 
@@ -215,73 +206,7 @@ func (h *Handler) Stop() error {
 	}
 
 	h.running = false
-	h.httpServer = nil
-
-	// Also stop project if running
-	if h.projectCancel != nil {
-		h.projectCancel()
-	}
-
 	return nil
-}
-
-// StartProject starts the project at the given path, managing lifecycle
-func (h *Handler) StartProject(path string) error {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	// 1. Cancel previous project
-	if h.projectCancel != nil {
-		h.projectCancel()
-	}
-
-	// 2. Block until port 8080 unbinds (assuming app runs on 8080)
-	// We check for port 8080 closure with a timeout.
-	timeout := time.After(5 * time.Second)
-	ticker := time.NewTicker(100 * time.Millisecond)
-	defer ticker.Stop()
-
-portLoop:
-	for {
-		select {
-		case <-timeout:
-			h.log("Warning: Port 8080 still active after timeout")
-			break portLoop
-		case <-ticker.C:
-			conn, err := net.Dial("tcp", "localhost:8080")
-			if err != nil {
-				// Port is closed
-				break portLoop
-			}
-			conn.Close()
-		}
-	}
-
-	// 3. Start new project
-	if h.restartFunc != nil {
-		ctx, cancel := context.WithCancel(context.Background())
-		h.projectCancel = cancel
-		h.projectDone = make(chan struct{})
-
-		go func() {
-			defer close(h.projectDone)
-			if err := h.restartFunc(ctx, path); err != nil {
-				h.log("Error starting project:", err)
-			}
-		}()
-	}
-
-	return nil
-}
-
-// StopProject stops the currently running project
-func (h *Handler) StopProject() {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	if h.projectCancel != nil {
-		h.projectCancel()
-		h.projectCancel = nil
-	}
 }
 
 func (h *Handler) handleActionPOST(w http.ResponseWriter, r *http.Request) {
@@ -291,24 +216,26 @@ func (h *Handler) handleActionPOST(w http.ResponseWriter, r *http.Request) {
 	}
 
 	key := r.URL.Query().Get("key")
-	switch key {
-	case "q":
-		h.StopProject()
+	if key == "" {
+		http.Error(w, "query param 'key' is required", http.StatusBadRequest)
+		return
+	}
+
+	h.mu.Lock()
+	actionCb := h.actionFunc
+	h.mu.Unlock()
+
+	if actionCb != nil {
+		actionCb(key)
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("Project stopped"))
-	case "r":
-		if h.actionFunc != nil {
-			h.actionFunc("r")
-		}
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("Reload triggered"))
-	default:
-		http.Error(w, "Invalid action key", http.StatusBadRequest)
+		w.Write([]byte(fmt.Sprintf("Action applied: %s", key)))
+	} else {
+		http.Error(w, "No action handler configured", http.StatusServiceUnavailable)
 	}
 }
 
-// publishLog publishes a log message to SSE
-func (h *Handler) publishLog(msg string) {
+// PublishLog publishes a log message to SSE
+func (h *Handler) PublishLog(msg string) {
 	if h.sseHub != nil {
 		h.sseHub.Publish([]byte(msg), "logs")
 	}

@@ -44,18 +44,19 @@ See [MCP_REFACTOR_FLOW.md](diagrams/MCP_REFACTOR_FLOW.md) for precise execution 
 - **Log Broadcaster**: The `mcpserve.Handler.log(...)` function must not only write to STDOUT or local files but also construct a string/JSON message and publish it using `h.sseHub.Publish(msgData)`. 
 - This enables any connected `devtui` client to view live logs.
 
-### 3.3. Project Lifecycle Management (`tools.go`)
-- **`start_development` tool**: Modify this executor inside `mcp-tools` (or wherever it's registered by `app`). When `start_development(path)` is called:
-  1. The MCP Server must first cancel the `context` or send a signal to the `exitChan` of the PREVIOUSLY running project (if any).
-  2. Block until the old project shuts down cleanly (port 8080 unbinds).
-  3. Invoke the callback `app.Start(headless=true, ...)` with the new path. 
-  4. Note: `mcpserve` doesn't import `app` to avoid cyclical dependencies. Instead, `app` must register a callback `mcpserve.SetProjectRestartFunc(func(path string))` during its injection phase.
+### 3.3. Project Lifecycle Management
+- **`start_development` tool**: This tool is NOT registered inside `mcpserve` directly. 
+  1. The `app` package (specifically in `app/bootstrap.go`) implements the `mcpserve.ToolProvider` interface (e.g., as `daemonToolProvider`).
+  2. This provider registers `start_development`.
+  3. When executed, the provider manages the `context.CancelFunc` and cleanly stops the previous `app.Start` headless goroutine.
+  4. It blocks until the old project shuts down cleanly (port 8080 unbinds).
+  5. It invokes the new `app.Start(headless=true, ...)` with the new path inside a new goroutine.
 
 ### 3.4. Handle UI Actions (`POST /action?key=...`)
 - **Handler Logic**:
   - Read `r.URL.Query().Get("key")`.
-  - If `key == 'q'`, trigger project shutdown (same as above).
-  - If `key == 'r'`, invoke the project's forced rebuild/reload watcher logic. Again, this requires a callback from `app` into `mcpserve` (`SetActionFunc(func(action string))`).
+  - Simply invoke the generic callback configured via `h.OnUIAction(func(key string))`.
+  - The `app` layer (in `bootstrap.go`) will receive `q` or `r` and decide to trigger project shutdown or restart. `mcpserve` itself should remain completely agnostic to what these keys mean.
 
 ## 4. Diagram-Driven Testing (DDT)
 As mandated by the `DEFAULT_LLM_SKILL.md`, the execution flow defined in the sequence diagram ([diagrams/MCP_REFACTOR_FLOW.md](diagrams/MCP_REFACTOR_FLOW.md)) **MUST** be covered by a corresponding Integration Test. You must write an integration test that exercises every branch, SSE event broadcasting, HTTP endpoint connection, and failure mode depicted in the Mermaid diagram.

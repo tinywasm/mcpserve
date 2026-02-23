@@ -41,16 +41,8 @@ func TestIntegration(t *testing.T) {
 	handler := NewHandler(config, nil, nil, exitChan)
 
 	// Mock callbacks
-	restartCalled := make(chan string, 1)
-	handler.SetProjectRestartFunc(func(ctx context.Context, path string) error {
-		restartCalled <- path
-		// Simulate running project
-		<-ctx.Done()
-		return nil
-	})
-
 	actionCalled := make(chan string, 1)
-	handler.SetActionFunc(func(action string) {
+	handler.OnUIAction(func(action string) {
 		actionCalled <- action
 	})
 
@@ -124,39 +116,6 @@ func TestIntegration(t *testing.T) {
 		t.Error("Timeout waiting for action r")
 	}
 
-	// Test Start Project
-	// Note: StartProject waits for port 8080 to close.
-	// We assume 8080 is free. If not, this test might be slow or fail.
-	// We can check if 8080 is free. If not, we skip or warn.
-	if !isPortFree("8080") {
-		t.Log("Port 8080 is not free, StartProject test might delay")
-	}
-
-	errCh := make(chan error, 1)
-	go func() {
-		errCh <- handler.StartProject("test/path")
-	}()
-
-	select {
-	case path := <-restartCalled:
-		if path != "test/path" {
-			t.Errorf("Expected path 'test/path', got '%s'", path)
-		}
-	case <-time.After(6 * time.Second): // 5s timeout + buffer
-		t.Error("Timeout waiting for StartProject")
-	}
-
-	// Wait for StartProject to return (it spawns restartFunc in goroutine so it returns quickly after waiting for port)
-	select {
-	case err := <-errCh:
-		if err != nil {
-			t.Errorf("StartProject returned error: %v", err)
-		}
-	case <-time.After(1 * time.Second):
-		// If StartProject is waiting for port, it might take time.
-		// But we expect it to proceed if port is free.
-	}
-
 	// Test Action Quit (Stop Project)
 	req, _ = http.NewRequest("POST", baseURL+"/action?key=q", nil)
 	resp, err = http.DefaultClient.Do(req)
@@ -168,10 +127,14 @@ func TestIntegration(t *testing.T) {
 	}
 	resp.Body.Close()
 
-	// Verify project cancelled?
-	// The restartFunc mock waits for ctx.Done().
-	// We can't verify easily unless we add logging/channel in mock.
-	// But since StartProject calls cancel, and restartFunc listens to ctx.Done, it works.
+	select {
+	case action := <-actionCalled:
+		if action != "q" {
+			t.Errorf("Expected action 'q', got '%s'", action)
+		}
+	case <-time.After(1 * time.Second):
+		t.Error("Timeout waiting for action q")
+	}
 
 	// Cleanup
 	close(exitChan)
