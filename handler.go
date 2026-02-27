@@ -33,6 +33,7 @@ type Config struct {
 	ServerName    string // MCP server name
 	ServerVersion string // MCP server version
 	AppName       string // Application name (used to generate MCP server ID)
+	AppVersion    string // Binary version for /version endpoint (used to detect stale daemons)
 }
 
 // TuiInterface defines what the MCP handler needs from the TUI
@@ -126,7 +127,9 @@ func (h *Handler) Serve() {
 		},
 	})
 	h.sseHub = tinySSE.Server(&sse.ServerConfig{
-		ChannelProvider: &logChannelProvider{},
+		ChannelProvider:     &logChannelProvider{},
+		ClientChannelBuffer: 256, // Buffered to prevent dropping messages during client I/O
+		HistoryReplayBuffer: 100, // Replay last 100 messages on reconnect
 	})
 
 	// Create MCP server with tool capabilities
@@ -173,6 +176,7 @@ func (h *Handler) Serve() {
 
 	mux.Handle("/logs", h.sseHub)
 	mux.HandleFunc("/action", h.handleActionPOST)
+	mux.HandleFunc("/version", h.handleVersion)
 
 	h.mu.Lock()
 	h.httpServer = &http.Server{
@@ -248,6 +252,13 @@ func (h *Handler) handleActionPOST(w http.ResponseWriter, r *http.Request) {
 	} else {
 		http.Error(w, "No action handler configured", http.StatusServiceUnavailable)
 	}
+}
+
+// handleVersion returns the daemon's binary version as JSON for stale-daemon detection.
+func (h *Handler) handleVersion(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(`{"version":"` + h.config.AppVersion + `"}`))
 }
 
 // PublishTabLog publishes a structured log entry to the SSE stream with full routing metadata.
