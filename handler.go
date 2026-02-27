@@ -128,8 +128,9 @@ func (h *Handler) Serve() {
 	})
 	h.sseHub = tinySSE.Server(&sse.ServerConfig{
 		ChannelProvider:     &logChannelProvider{},
-		ClientChannelBuffer: 256, // Buffered to prevent dropping messages during client I/O
-		HistoryReplayBuffer: 100, // Replay last 100 messages on reconnect
+		ClientChannelBuffer: 256,  // Buffered to prevent dropping messages during client I/O
+		HistoryReplayBuffer: 100,  // Store last 100 messages for replay
+		ReplayAllOnConnect:  true, // Send full history to every new client on first connect
 	})
 
 	// Create MCP server with tool capabilities
