@@ -15,7 +15,9 @@ import (
 // LogEntry is the structured SSE payload.
 // JSON keys and types must match devtui.tabContentDTO exactly for client-side routing.
 // Type uses uint8 to match devtui.MessageType (tinywasm/fmt): 0=Normal,1=Info,2=Error,3=Warning.
-// HandlerType uses int to match devtui.handlerType: 0=loggable.
+// HandlerType uses int to match devtui.handlerType iota: 0=display,1=edit,2=execution,3=interactive,4=loggable.
+const handlerTypeLoggable = 4 // mirrors devtui.handlerTypeLoggable iota value
+
 type LogEntry struct {
 	Id           string `json:"id"`
 	Timestamp    string `json:"timestamp"`
@@ -24,7 +26,7 @@ type LogEntry struct {
 	TabTitle     string `json:"tab_title"`
 	HandlerName  string `json:"handler_name"`
 	HandlerColor string `json:"handler_color"`
-	HandlerType  int    `json:"handler_type"` // matches devtui.handlerType: 0 = loggable
+	HandlerType  int    `json:"handler_type"` // matches devtui.handlerType iota: 4 = loggable
 }
 
 // Config contains the configuration for Handler
@@ -276,7 +278,7 @@ func (h *Handler) PublishTabLog(tabTitle, handlerName, handlerColor, msg string)
 		TabTitle:     tabTitle,
 		HandlerName:  handlerName,
 		HandlerColor: handlerColor,
-		HandlerType:  0,
+		HandlerType:  handlerTypeLoggable,
 	}
 	data, err := json.Marshal(entry)
 	if err != nil {
