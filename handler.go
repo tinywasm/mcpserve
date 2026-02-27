@@ -2,6 +2,7 @@ package mcpserve
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"sync"
@@ -10,6 +11,21 @@ import (
 	"github.com/tinywasm/mcp/server"
 	"github.com/tinywasm/sse"
 )
+
+// LogEntry is the structured SSE payload.
+// JSON keys and types must match devtui.tabContentDTO exactly for client-side routing.
+// Type uses uint8 to match devtui.MessageType (tinywasm/fmt): 0=Normal,1=Info,2=Error,3=Warning.
+// HandlerType uses int to match devtui.handlerType: 0=loggable.
+type LogEntry struct {
+	Id           string `json:"id"`
+	Timestamp    string `json:"timestamp"`
+	Content      string `json:"content"`
+	Type         uint8  `json:"type"`         // matches devtui.MessageType (uint8): 1 = Info
+	TabTitle     string `json:"tab_title"`
+	HandlerName  string `json:"handler_name"`
+	HandlerColor string `json:"handler_color"`
+	HandlerType  int    `json:"handler_type"` // matches devtui.handlerType: 0 = loggable
+}
 
 // Config contains the configuration for Handler
 type Config struct {
@@ -234,9 +250,30 @@ func (h *Handler) handleActionPOST(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// PublishLog publishes a log message to SSE
-func (h *Handler) PublishLog(msg string) {
-	if h.sseHub != nil {
-		h.sseHub.Publish([]byte(msg), "logs")
+// PublishTabLog publishes a structured log entry to the SSE stream with full routing metadata.
+// tabTitle must match one of the section titles registered in the client TUI (e.g. "BUILD", "DEPLOY").
+func (h *Handler) PublishTabLog(tabTitle, handlerName, handlerColor, msg string) {
+	if h.sseHub == nil {
+		return
 	}
+	entry := LogEntry{
+		Id:           fmt.Sprintf("%d", time.Now().UnixNano()),
+		Timestamp:    time.Now().Format("15:04:05"),
+		Content:      msg,
+		Type:         1, // Msg.Info = 1 in tinywasm/fmt
+		TabTitle:     tabTitle,
+		HandlerName:  handlerName,
+		HandlerColor: handlerColor,
+		HandlerType:  0,
+	}
+	data, err := json.Marshal(entry)
+	if err != nil {
+		return
+	}
+	h.sseHub.Publish(data, "logs")
+}
+
+// PublishLog publishes a log message to the BUILD section as a generic MCP log.
+func (h *Handler) PublishLog(msg string) {
+	h.PublishTabLog("BUILD", "MCP", "#f97316", msg)
 }
