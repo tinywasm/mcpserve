@@ -16,7 +16,11 @@ import (
 // JSON keys and types must match devtui.tabContentDTO exactly for client-side routing.
 // Type uses uint8 to match devtui.MessageType (tinywasm/fmt): 0=Normal,1=Info,2=Error,3=Warning.
 // HandlerType uses int to match devtui.handlerType iota: 0=display,1=edit,2=execution,3=interactive,4=loggable.
-const handlerTypeLoggable = 4 // mirrors devtui.handlerTypeLoggable iota value
+// HandlerTypeLoggable is the handler_type value for plain log messages.
+// Defined locally to avoid a circular import with devtui.
+// MUST equal devtui.HandlerTypeLoggable (= 4). If devtui's HandlerType iota
+// changes, update both constants in lockstep.
+const HandlerTypeLoggable = 4
 
 type LogEntry struct {
 	Id           string `json:"id"`
@@ -53,7 +57,8 @@ type Handler struct {
 	ideStatus    string                // Summary of IDE configuration
 
 	// Callbacks
-	actionFunc func(string)
+	actionFunc    func(string, string)
+	stateProvider func() []byte
 
 	// Internal state
 	sseHub *sse.SSEServer
@@ -101,8 +106,29 @@ func (h *Handler) URL() string {
 }
 
 // OnUIAction sets the callback for generic UI actions triggered from TUI or IDE
-func (h *Handler) OnUIAction(actionFunc func(string)) {
+func (h *Handler) OnUIAction(actionFunc func(key, value string)) {
 	h.actionFunc = actionFunc
+}
+
+// RegisterStateProvider registers a function that returns current handler state as JSON bytes.
+// Called on GET /state; mcpserve does not interpret the bytes.
+func (h *Handler) RegisterStateProvider(fn func() []byte) {
+	h.mu.Lock()
+	h.stateProvider = fn
+	h.mu.Unlock()
+}
+
+func (h *Handler) handleStateGET(w http.ResponseWriter, r *http.Request) {
+	h.mu.Lock()
+	fn := h.stateProvider
+	h.mu.Unlock()
+	if fn == nil {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(fn())
 }
 
 // logChannelProvider implements sse.ChannelProvider
@@ -179,6 +205,7 @@ func (h *Handler) Serve() {
 
 	mux.Handle("/logs", h.sseHub)
 	mux.HandleFunc("/action", h.handleActionPOST)
+	mux.HandleFunc("/state", h.handleStateGET)
 	mux.HandleFunc("/version", h.handleVersion)
 
 	h.mu.Lock()
@@ -243,13 +270,14 @@ func (h *Handler) handleActionPOST(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "query param 'key' is required", http.StatusBadRequest)
 		return
 	}
+	value := r.URL.Query().Get("value") // empty string if absent
 
 	h.mu.Lock()
 	actionCb := h.actionFunc
 	h.mu.Unlock()
 
 	if actionCb != nil {
-		actionCb(key)
+		actionCb(key, value)
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(fmt.Sprintf("Action applied: %s", key)))
 	} else {
@@ -278,7 +306,7 @@ func (h *Handler) PublishTabLog(tabTitle, handlerName, handlerColor, msg string)
 		TabTitle:     tabTitle,
 		HandlerName:  handlerName,
 		HandlerColor: handlerColor,
-		HandlerType:  handlerTypeLoggable,
+		HandlerType:  HandlerTypeLoggable,
 	}
 	data, err := json.Marshal(entry)
 	if err != nil {

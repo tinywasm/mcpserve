@@ -42,8 +42,8 @@ func TestIntegration(t *testing.T) {
 
 	// Mock callbacks
 	actionCalled := make(chan string, 1)
-	handler.OnUIAction(func(action string) {
-		actionCalled <- action
+	handler.OnUIAction(func(key, value string) {
+		actionCalled <- key
 	})
 
 	// Start server
