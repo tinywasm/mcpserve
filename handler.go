@@ -176,7 +176,7 @@ func (h *Handler) Serve() {
 		tools := handler.GetMCPTools()
 		for _, toolMeta := range tools {
 			tool := buildMCPTool(toolMeta)
-			s.AddTool(*tool, h.mcpExecuteTool(handler, toolMeta.Execute))
+			s.AddToolFromUser(*tool, h.mcpExecuteTool(handler, toolMeta.Execute))
 		}
 	}
 

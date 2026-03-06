@@ -37,69 +37,27 @@ type Parameter struct {
 	Default     any
 }
 
-// buildMCPTool constructs MCP tool from metadata
+// buildMCPTool converts mcpserve.Tool to mcp.Tool for registration.
+// mcpserve.Tool and mcp.Tool are structurally identical, just cast the parameters.
 func buildMCPTool(meta Tool) *mcp.Tool {
-	options := []mcp.ToolOption{
-		mcp.WithDescription(meta.Description),
-	}
-
-	for _, param := range meta.Parameters {
-		switch param.Type {
-		case "string":
-			// Build string parameter options directly
-			var strOpts []mcp.PropertyOption
-
-			if param.Required {
-				strOpts = append(strOpts, mcp.Required())
-			}
-			if param.Description != "" {
-				strOpts = append(strOpts, mcp.Description(param.Description))
-			}
-			if len(param.EnumValues) > 0 {
-				strOpts = append(strOpts, mcp.Enum(param.EnumValues...))
-			}
-			if param.Default != nil {
-				if defaultStr, ok := param.Default.(string); ok {
-					strOpts = append(strOpts, mcp.DefaultString(defaultStr))
-				}
-			}
-
-			options = append(options, mcp.WithString(param.Name, strOpts...))
-
-		case "number":
-			// Build number parameter options directly
-			var numOpts []mcp.PropertyOption
-
-			if param.Required {
-				numOpts = append(numOpts, mcp.Required())
-			}
-			if param.Description != "" {
-				numOpts = append(numOpts, mcp.Description(param.Description))
-			}
-			if param.Default != nil {
-				if defaultNum, ok := param.Default.(float64); ok {
-					numOpts = append(numOpts, mcp.DefaultNumber(defaultNum))
-				}
-			}
-
-			options = append(options, mcp.WithNumber(param.Name, numOpts...))
-
-		case "boolean":
-			// Build boolean parameter options directly
-			var boolOpts []mcp.PropertyOption
-
-			if param.Required {
-				boolOpts = append(boolOpts, mcp.Required())
-			}
-			if param.Description != "" {
-				boolOpts = append(boolOpts, mcp.Description(param.Description))
-			}
-			// Note: DefaultBoolean might not exist in mcp-go, skip for now
-
-			options = append(options, mcp.WithBoolean(param.Name, boolOpts...))
+	// Convert mcpserve.Parameter[] to mcp.Parameter[]
+	params := make([]mcp.Parameter, len(meta.Parameters))
+	for i, p := range meta.Parameters {
+		params[i] = mcp.Parameter{
+			Name:        p.Name,
+			Description: p.Description,
+			Required:    p.Required,
+			Type:        p.Type,
+			EnumValues:  p.EnumValues,
+			Default:     p.Default,
 		}
 	}
 
-	tool := mcp.NewTool(meta.Name, options...)
-	return &tool
+	tool := &mcp.Tool{
+		Name:        meta.Name,
+		Description: meta.Description,
+		Parameters:  params,
+		Execute:     meta.Execute,
+	}
+	return tool
 }
