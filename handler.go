@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/tinywasm/mcp/server"
+	"github.com/tinywasm/mcp"
 	"github.com/tinywasm/sse"
 )
 
@@ -162,10 +162,10 @@ func (h *Handler) Serve() {
 	})
 
 	// Create MCP server with tool capabilities
-	s := server.NewMCPServer(
+	s := mcp.NewMCPServer(
 		h.config.ServerName,
 		h.config.ServerVersion,
-		server.WithToolCapabilities(true),
+		mcp.WithToolCapabilities(true),
 	)
 
 	// Load tools from all registered handlers
@@ -185,9 +185,9 @@ func (h *Handler) Serve() {
 	// Based on mcp-go usage, it typically provides Start() but might not directly expose ServeHTTP.
 	// However, if we look at how libraries are usually built, it should.
 	// If not, we might need a workaround. For now assuming it does.
-	mcpServer := server.NewStreamableHTTPServer(s,
-		server.WithEndpointPath("/mcp"),
-		server.WithStateLess(true),
+	mcpServer := mcp.NewStreamableHTTPServer(s,
+		mcp.WithEndpointPath("/mcp"),
+		mcp.WithStateLess(true),
 	)
 
 	// Set up router

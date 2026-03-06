@@ -1,6 +1,6 @@
 package mcpserve
 
-import "github.com/tinywasm/mcp/mcp"
+import "github.com/tinywasm/mcp"
 
 // Loggable defines the interface for handlers that support logging
 type Loggable interface {

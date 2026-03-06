@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/tinywasm/mcp/mcp"
+	"github.com/tinywasm/mcp"
 )
 
 // BinaryData represents binary response from tools (imported from handlers)
