@@ -10,7 +10,7 @@ type Loggable interface {
 
 // ToolProvider defines the interface for handlers that support MCP tools
 type ToolProvider interface {
-	GetMCPToolsMetadata() []ToolMetadata
+	GetMCPTools() []Tool
 }
 
 // ToolExecutor defines how a tool should be executed
@@ -18,17 +18,17 @@ type ToolProvider interface {
 // args: map of parameter name to value from MCP request
 type ToolExecutor func(args map[string]any)
 
-// ToolMetadata provides MCP tool configuration metadata
+// Tool provides MCP tool configuration metadata
 // This is the standard interface that all handlers should implement
-type ToolMetadata struct {
+type Tool struct {
 	Name        string
 	Description string
-	Parameters  []ParameterMetadata
+	Parameters  []Parameter
 	Execute     ToolExecutor // Handler provides execution function
 }
 
-// ParameterMetadata describes a tool parameter
-type ParameterMetadata struct {
+// Parameter describes a tool parameter
+type Parameter struct {
 	Name        string
 	Description string
 	Required    bool
@@ -38,7 +38,7 @@ type ParameterMetadata struct {
 }
 
 // buildMCPTool constructs MCP tool from metadata
-func buildMCPTool(meta ToolMetadata) *mcp.Tool {
+func buildMCPTool(meta Tool) *mcp.Tool {
 	options := []mcp.ToolOption{
 		mcp.WithDescription(meta.Description),
 	}

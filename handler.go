@@ -26,7 +26,7 @@ type LogEntry struct {
 	Id           string `json:"id"`
 	Timestamp    string `json:"timestamp"`
 	Content      string `json:"content"`
-	Type         uint8  `json:"type"`         // matches devtui.MessageType (uint8): 1 = Info
+	Type         uint8  `json:"type"` // matches devtui.MessageType (uint8): 1 = Info
 	TabTitle     string `json:"tab_title"`
 	HandlerName  string `json:"handler_name"`
 	HandlerColor string `json:"handler_color"`
@@ -173,7 +173,7 @@ func (h *Handler) Serve() {
 		if handler == nil {
 			continue
 		}
-		tools := handler.GetMCPToolsMetadata()
+		tools := handler.GetMCPTools()
 		for _, toolMeta := range tools {
 			tool := buildMCPTool(toolMeta)
 			s.AddTool(*tool, h.mcpExecuteTool(handler, toolMeta.Execute))

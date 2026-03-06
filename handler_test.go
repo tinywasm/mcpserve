@@ -11,12 +11,12 @@ type mockHandler struct {
 	log func(message ...any)
 }
 
-func (m *mockHandler) GetMCPToolsMetadata() []ToolMetadata {
-	return []ToolMetadata{
+func (m *mockHandler) GetMCPTools() []Tool {
+	return []Tool{
 		{
 			Name:        "test_tool",
 			Description: "A test tool",
-			Parameters:  []ParameterMetadata{},
+			Parameters:  []Parameter{},
 			Execute: func(args map[string]any) {
 				if m.log != nil {
 					m.log("test_tool executed")
@@ -71,7 +71,7 @@ func TestToolMetadataRegistration(t *testing.T) {
 	exitChan := make(chan bool, 1)
 	_ = NewHandler(config, []ToolProvider{mock}, &mockTUI{}, exitChan)
 
-	tools := mock.GetMCPToolsMetadata()
+	tools := mock.GetMCPTools()
 
 	if len(tools) != 1 {
 		t.Fatalf("Expected 1 tool, got %d", len(tools))
@@ -105,7 +105,7 @@ func TestToolExecution(t *testing.T) {
 		}
 	})
 
-	tools := mock.GetMCPToolsMetadata()
+	tools := mock.GetMCPTools()
 	// Execute tool directly
 	tools[0].Execute(map[string]any{})
 

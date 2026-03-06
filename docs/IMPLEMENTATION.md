@@ -6,7 +6,7 @@
 See [MCP_FLOW.mermaid](MCP_FLOW.md) for visual flow.
 
 1. **Discovery**: `mcpserve` takes `[]ToolProvider` handlers.
-2. **Interface**: For each handler, it calls `GetMCPToolsMetadata()` directly (see [tools.go](../tools.go)).
+2. **Interface**: For each handler, it calls `GetMCPTools()` directly (see [tools.go](../tools.go)).
 3. **Execution**: When an LLM calls a tool, the [executor.go](../executor.go) wraps the execution:
     - Extracts arguments.
     - Captures logs/binary data via injected logger (`SetLog`).

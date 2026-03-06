@@ -8,8 +8,8 @@ sequenceDiagram
     participant DOM as Domain Handler (e.g. WasmClient)
 
     Note over SRV, DOM: Initialization (Interface)
-    SRV->>DOM: Call GetMCPToolsMetadata()
-    DOM-->>SRV: Return []mcpserve.ToolMetadata (Shared Types)
+    SRV->>DOM: Call GetMCPTools()
+    DOM-->>SRV: Return []mcpserve.Tool (Shared Types)
 
     Note over LLM, DOM: Tool Call
     LLM->>SRV: JSON-RPC: tools/call (name, args)

@@ -9,15 +9,15 @@ Import `github.com/tinywasm/mcpserve` to use standard metadata structs.
 import "github.com/tinywasm/mcpserve"
 ```
 
-Implement `GetMCPToolsMetadata() []mcpserve.ToolMetadata` on your handler.
+Implement `GetMCPTools() []mcpserve.Tool` on your handler.
 
 ```go
-func (h *MyHandler) GetMCPToolsMetadata() []mcpserve.ToolMetadata {
-	return []mcpserve.ToolMetadata{
+func (h *MyHandler) GetMCPTools() []mcpserve.Tool {
+	return []mcpserve.Tool{
 		{
 			Name: "tool_name",
 			Description: "What it does",
-			Parameters: []mcpserve.ParameterMetadata{
+			Parameters: []mcpserve.Parameter{
 				{Name: "param1", Type: "string", Required: true},
 			},
 			Execute: func(args map[string]any) {
